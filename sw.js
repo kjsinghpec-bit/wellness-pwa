@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wellness-v1';
+const CACHE_NAME = 'wellness-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -34,26 +34,29 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch Event - Cache First Strategy with Network Fallback
+// Fetch Event - Network First Strategy with Cached Offline Fallback
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request).then((response) => {
-        // Don't cache if not a valid response or non-GET
-        if (!response || response.status !== 200 || response.type !== 'basic' || event.request.method !== 'GET') {
-          return response;
-        }
+    fetch(event.request).then((response) => {
+      // Refresh same-origin assets while preserving the live response.
+      if (response && response.status === 200 && response.type === 'basic') {
         const responseToCache = response.clone();
         caches.open(CACHE_NAME).then((cache) => {
           cache.put(event.request, responseToCache);
         });
-        return response;
-      }).catch(() => {
-        // Fallback for document requests if offline and uncached
-        if (event.request.headers.get('accept').includes('text/html')) {
+      }
+      return response;
+    }).catch(() => {
+      return caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        // Fall back to the cached app shell for offline navigation.
+        if (event.request.mode === 'navigate') {
           return caches.match('./index.html');
         }
       });
