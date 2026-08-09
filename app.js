@@ -2631,7 +2631,9 @@ async function runDailyHealthCheck() {
 // 15. MODAL & NAVIGATION CONTROLLERS
 // ---------------------------------------------------------------------------
 
-function setupNavigation() {
+const TAB_ORDER = ['today', 'habits', 'food', 'weight', 'history', 'stoic'];
+
+function activateTab(targetTab) {
   const navTabs = document.querySelectorAll('.nav-tab');
   const tabViews = document.querySelectorAll('.tab-view');
   const headerTitle = document.getElementById('header-title');
@@ -2648,34 +2650,94 @@ function setupNavigation() {
     stoic: { title: 'Stoic Mind', icon: '🏛️', showBtn: false, btnText: '' }
   };
 
+  navTabs.forEach(t => t.classList.toggle('active', t.getAttribute('data-tab') === targetTab));
+
+  tabViews.forEach(v => v.classList.remove('active'));
+  document.getElementById(`${targetTab}-view`).classList.add('active');
+
+  const config = navMap[targetTab] || navMap.today;
+  headerTitle.textContent = config.title;
+  headerIcon.textContent = config.icon;
+  headerBtn.style.display = config.showBtn ? 'flex' : 'none';
+  if (headerBtnText && config.btnText) headerBtnText.textContent = config.btnText;
+
+  state.activeTab = targetTab;
+
+  if (targetTab === 'today') renderTodayView();
+  else if (targetTab === 'habits') renderHabitsView();
+  else if (targetTab === 'food') renderFoodView();
+  else if (targetTab === 'weight') renderWeightView();
+  else if (targetTab === 'history') renderCalendarView();
+}
+
+function setupNavigation() {
+  const navTabs = document.querySelectorAll('.nav-tab');
+
   navTabs.forEach(tab => {
     tab.addEventListener('click', () => {
       triggerHapticFeedback();
-      const targetTab = tab.getAttribute('data-tab');
-
-      navTabs.forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-
-      tabViews.forEach(v => v.classList.remove('active'));
-      document.getElementById(`${targetTab}-view`).classList.add('active');
-
-      const config = navMap[targetTab] || navMap.today;
-      headerTitle.textContent = config.title;
-      headerIcon.textContent = config.icon;
-      headerBtn.style.display = config.showBtn ? 'flex' : 'none';
-      if (headerBtnText && config.btnText) headerBtnText.textContent = config.btnText;
-
-      state.activeTab = targetTab;
-
-      if (targetTab === 'today') renderTodayView();
-      else if (targetTab === 'habits') renderHabitsView();
-      else if (targetTab === 'food') renderFoodView();
-      else if (targetTab === 'weight') renderWeightView();
-      else if (targetTab === 'history') renderCalendarView();
+      activateTab(tab.getAttribute('data-tab'));
     });
   });
 
   document.getElementById('header-date').textContent = formatDateDisplay(getTodayStr());
+}
+
+// Horizontal swipe between main sections (Today <-> Stoic, no wrap).
+// Reuses activateTab() above - no duplicate navigation logic.
+function setupSwipeNavigation() {
+  const mainContent = document.querySelector('.main-content');
+  if (!mainContent) return;
+
+  const MIN_SWIPE_DISTANCE = 60; // px - keeps ordinary taps from triggering a swipe
+  const DIRECTION_RATIO = 1.5; // horizontal movement must clearly dominate vertical
+
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+
+  function isExcludedTarget(target) {
+    // Forms, buttons, sliders, links: let normal touch behavior happen.
+    if (target.closest('input, textarea, select, button, a, label')) return true;
+    // Horizontally scrollable strips (e.g. category filter chips).
+    if (target.closest('.category-chips')) return true;
+    return false;
+  }
+
+  mainContent.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1 || isExcludedTarget(e.target)) {
+      tracking = false;
+      return;
+    }
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    tracking = true;
+  }, { passive: true });
+
+  mainContent.addEventListener('touchmove', () => {
+    // No-op: keep listener passive so vertical scrolling stays native/smooth.
+  }, { passive: true });
+
+  mainContent.addEventListener('touchend', (e) => {
+    if (!tracking) return;
+    tracking = false;
+
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - startX;
+    const deltaY = touch.clientY - startY;
+
+    if (Math.abs(deltaX) < MIN_SWIPE_DISTANCE) return;
+    if (Math.abs(deltaX) < Math.abs(deltaY) * DIRECTION_RATIO) return;
+
+    const currentIndex = TAB_ORDER.indexOf(state.activeTab);
+    if (currentIndex === -1) return;
+
+    const nextIndex = deltaX < 0 ? currentIndex + 1 : currentIndex - 1;
+    if (nextIndex < 0 || nextIndex >= TAB_ORDER.length) return; // no wrap at the ends
+
+    triggerHapticFeedback();
+    activateTab(TAB_ORDER[nextIndex]);
+  }, { passive: true });
 }
 
 function setupModals() {
@@ -2844,6 +2906,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   setupPasscodeLock();
   setupNavigation();
+  setupSwipeNavigation();
   setupCategoryChips();
   setupFoodSection();
   setupWeightRotator();
