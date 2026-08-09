@@ -434,6 +434,57 @@ class AppState {
   saveDailyReactions() { this.save(STORAGE_KEYS.DAILY_REACTIONS, this.dailyReactions); }
   saveSettings() { this.save(STORAGE_KEYS.SETTINGS, this.settings); }
   saveTomorrowActions() { this.save(STORAGE_KEYS.TOMORROW_ACTIONS, this.tomorrowActions); }
+
+  async syncToCloud() {
+    try {
+      const payload = {
+        habits: this.habits,
+        weightLogs: this.weightLogs,
+        weightGoal: this.weightGoal,
+        foodLogs: this.foodLogs,
+        eveningReviews: this.eveningReviews,
+        updatedAt: new Date().toISOString()
+      };
+      fetch(CLOUD_SYNC_ENDPOINT, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(() => {});
+    } catch (e) {}
+  }
+
+  async pullFromCloud() {
+    try {
+      const res = await fetch(CLOUD_SYNC_ENDPOINT);
+      if (res.ok) {
+        const record = await res.json();
+        if (record && record.habits && record.habits.length > 0) {
+          this.habits = record.habits;
+          this.habits.forEach(h => {
+            if (!h.minimumCompletions) h.minimumCompletions = [];
+            if (!h.completionRecords) h.completionRecords = [];
+          });
+
+          this.weightLogs = record.weightLogs || [];
+          this.weightGoal = record.weightGoal || 70.0;
+          this.foodLogs = record.foodLogs || [];
+          this.eveningReviews = record.eveningReviews || {};
+
+          localStorage.setItem(STORAGE_KEYS.HABITS, JSON.stringify(this.habits));
+          localStorage.setItem(STORAGE_KEYS.WEIGHT_LOGS, JSON.stringify(this.weightLogs));
+          localStorage.setItem(STORAGE_KEYS.WEIGHT_GOAL, JSON.stringify(this.weightGoal));
+          localStorage.setItem(STORAGE_KEYS.FOOD_LOGS, JSON.stringify(this.foodLogs));
+          localStorage.setItem(STORAGE_KEYS.EVENING_REVIEWS, JSON.stringify(this.eveningReviews));
+
+          renderTodayView();
+          renderHabitsView();
+          renderFoodView();
+          renderWeightView();
+          renderCalendarView();
+        }
+      }
+    } catch (e) {}
+  }
 }
 
 function getNextDayStr(dateStr = getTodayStr()) {
@@ -488,58 +539,6 @@ function dismissTomorrowAction(actionId) {
   action.status = 'dismissed';
   state.saveTomorrowActions();
   renderTodayView();
-}
-
-  async syncToCloud() {
-    try {
-      const payload = {
-        habits: this.habits,
-        weightLogs: this.weightLogs,
-        weightGoal: this.weightGoal,
-        foodLogs: this.foodLogs,
-        eveningReviews: this.eveningReviews,
-        updatedAt: new Date().toISOString()
-      };
-      fetch(CLOUD_SYNC_ENDPOINT, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      }).catch(() => {});
-    } catch (e) {}
-  }
-
-  async pullFromCloud() {
-    try {
-      const res = await fetch(CLOUD_SYNC_ENDPOINT);
-      if (res.ok) {
-        const record = await res.json();
-        if (record && record.habits && record.habits.length > 0) {
-          this.habits = record.habits;
-          this.habits.forEach(h => {
-            if (!h.minimumCompletions) h.minimumCompletions = [];
-            if (!h.completionRecords) h.completionRecords = [];
-          });
-
-          this.weightLogs = record.weightLogs || [];
-          this.weightGoal = record.weightGoal || 70.0;
-          this.foodLogs = record.foodLogs || [];
-          this.eveningReviews = record.eveningReviews || {};
-
-          localStorage.setItem(STORAGE_KEYS.HABITS, JSON.stringify(this.habits));
-          localStorage.setItem(STORAGE_KEYS.WEIGHT_LOGS, JSON.stringify(this.weightLogs));
-          localStorage.setItem(STORAGE_KEYS.WEIGHT_GOAL, JSON.stringify(this.weightGoal));
-          localStorage.setItem(STORAGE_KEYS.FOOD_LOGS, JSON.stringify(this.foodLogs));
-          localStorage.setItem(STORAGE_KEYS.EVENING_REVIEWS, JSON.stringify(this.eveningReviews));
-
-          renderTodayView();
-          renderHabitsView();
-          renderFoodView();
-          renderWeightView();
-          renderCalendarView();
-        }
-      }
-    } catch (e) {}
-  }
 }
 
 const state = new AppState();
