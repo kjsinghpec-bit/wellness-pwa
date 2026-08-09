@@ -184,18 +184,26 @@ const STORAGE_KEYS = {
 const CLOUD_SYNC_ENDPOINT = 'https://crudcrud.com/api/df9fe4cc2a2b4f0ba158f3f54b74b576/wellness/6a7872454db36503e87d5f2b';
 const PUBLIC_LIVE_URL = 'https://kjsinghpec-bit.github.io/wellness-pwa/';
 
+// Accurate Real-World Date in Device's Local Timezone (YYYY-MM-DD)
 function getTodayStr() {
   const d = new Date();
-  return d.toISOString().split('T')[0];
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
+// Display Date formatted in device's local timezone (e.g. Sun, Aug 9, 2026)
 function formatDateDisplay(dateStr) {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-').map(Number);
+  // Construct date in local timezone using [year, monthIndex, day]
+  const d = new Date(parts[0], parts[1] - 1, parts[2]);
   const options = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
-  const d = new Date(dateStr + 'T00:00:00');
   return d.toLocaleDateString('en-US', options);
 }
 
-// Default Habits including Call Wife reminder every 3 hrs during active hours
+// Default Habits matching current real-world date
 const DEFAULT_HABITS = [
   {
     id: 'h1',
@@ -220,14 +228,26 @@ const DEFAULT_HABITS = [
   }
 ];
 
-// Default Weight Logs in Kilograms (kg)
-const DEFAULT_WEIGHT_LOGS = [
-  { id: 'w1', weight: 76.5, date: '2026-07-20' },
-  { id: 'w2', weight: 75.8, date: '2026-07-27' },
-  { id: 'w3', weight: 75.0, date: '2026-08-02' },
-  { id: 'w4', weight: 74.2, date: '2026-08-09' }
-];
+// Default Weight Logs dynamically mapped relative to current device clock
+function generateDefaultWeightLogs() {
+  const today = new Date();
+  
+  const d1 = new Date(today); d1.setDate(d1.getDate() - 20);
+  const d2 = new Date(today); d2.setDate(d2.getDate() - 13);
+  const d3 = new Date(today); d3.setDate(d3.getDate() - 7);
+  const d4 = new Date(today);
 
+  const format = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  return [
+    { id: 'w1', weight: 76.5, date: format(d1) },
+    { id: 'w2', weight: 75.8, date: format(d2) },
+    { id: 'w3', weight: 75.0, date: format(d3) },
+    { id: 'w4', weight: 74.2, date: format(d4) }
+  ];
+}
+
+const DEFAULT_WEIGHT_LOGS = generateDefaultWeightLogs();
 const DEFAULT_GOAL = 70.0;
 
 class AppState {
@@ -236,12 +256,12 @@ class AppState {
     this.weightLogs = this.load(STORAGE_KEYS.WEIGHT_LOGS, DEFAULT_WEIGHT_LOGS);
     this.weightGoal = this.load(STORAGE_KEYS.WEIGHT_GOAL, DEFAULT_GOAL);
     this.activeTab = 'habits';
-    this.selectedHistoryDate = getTodayStr();
     
-    // Calendar month tracking
+    // Always initialize selected history date & calendar to device's real-world current date
     const today = new Date();
+    this.selectedHistoryDate = getTodayStr();
     this.calendarYear = today.getFullYear();
-    this.calendarMonth = today.getMonth(); // 0-indexed
+    this.calendarMonth = today.getMonth(); // 0-indexed month
   }
 
   load(key, fallback) {
@@ -327,7 +347,6 @@ function setupPasscodeLock() {
   const errorContainer = document.getElementById('passcode-error');
   const lockBtn = document.getElementById('header-lock-btn');
 
-  // ALWAYS prompt for passcode on fresh page load or when not unlocked
   const isUnlocked = sessionStorage.getItem(STORAGE_KEYS.SESSION_UNLOCKED) === 'true';
 
   if (isUnlocked) {
@@ -432,17 +451,17 @@ function calculateStreak(completions) {
   let streak = 0;
   let checkDate = new Date(today);
 
-  const todayStr = checkDate.toISOString().split('T')[0];
+  const todayStr = getTodayStr();
   if (!set.has(todayStr)) {
     checkDate.setDate(checkDate.getDate() - 1);
-    const yesterdayStr = checkDate.toISOString().split('T')[0];
+    const yesterdayStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
     if (!set.has(yesterdayStr)) {
       return 0;
     }
   }
 
   while (true) {
-    const dateStr = checkDate.toISOString().split('T')[0];
+    const dateStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
     if (set.has(dateStr)) {
       streak++;
       checkDate.setDate(checkDate.getDate() - 1);
@@ -496,7 +515,7 @@ function renderHabitsView() {
     const streak = calculateStreak(habit.completions);
 
     const weeklyRowHtml = daysWindow.map(d => {
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const isDone = habit.completions.includes(dateStr);
       const isToday = dateStr === todayStr;
       const dayLabel = d.toLocaleDateString('en-US', { weekday: 'narrow' });
@@ -732,7 +751,7 @@ function deleteWeightLog(logId) {
 }
 
 // ---------------------------------------------------------------------------
-// 7. REAL INTERACTIVE MONTHLY CALENDAR GRID & PAST DATE EDITOR
+// 7. ACCURATE REAL-WORLD DEVICE CLOCK CALENDAR GRID & PAST DATE EDITOR
 // ---------------------------------------------------------------------------
 
 function renderCalendarView() {
@@ -751,39 +770,31 @@ function renderCalendarView() {
 
   daysGrid.innerHTML = '';
 
-  // Get first day of month (0 = Sun, 1 = Mon...)
   const firstDayObj = new Date(year, month, 1);
-  let startingDayOfWeek = firstDayObj.getDay(); // 0 is Sun
-  // Convert so Monday is 0
+  let startingDayOfWeek = firstDayObj.getDay();
   startingDayOfWeek = (startingDayOfWeek === 0) ? 6 : startingDayOfWeek - 1;
 
   const totalDaysInMonth = new Date(year, month + 1, 0).getDate();
 
-  // Render empty leading cells
   for (let i = 0; i < startingDayOfWeek; i++) {
     const emptyCell = document.createElement('div');
     emptyCell.className = 'cal-day-cell other-month';
     daysGrid.appendChild(emptyCell);
   }
 
-  // Render month days
   const totalHabitsCount = state.habits.length;
+  const todayStr = getTodayStr();
 
   for (let day = 1; day <= totalDaysInMonth; day++) {
     const monthStr = String(month + 1).padStart(2, '0');
     const dayStr = String(day).padStart(2, '0');
     const dateStr = `${year}-${monthStr}-${dayStr}`;
 
-    // Count habits completed on dateStr
     let doneCount = 0;
     state.habits.forEach(h => {
       if (h.completions.includes(dateStr)) doneCount++;
     });
 
-    // Color Coding Classification:
-    // Green (cal-all): All habits completed
-    // Yellow (cal-some): Partial habits completed
-    // Red (cal-none): Zero habits completed
     let colorClass = 'cal-none';
     if (totalHabitsCount > 0) {
       if (doneCount === totalHabitsCount) {
@@ -796,9 +807,10 @@ function renderCalendarView() {
     }
 
     const isSelected = dateStr === state.selectedHistoryDate;
+    const isToday = dateStr === todayStr;
 
     const cell = document.createElement('div');
-    cell.className = `cal-day-cell ${colorClass} ${isSelected ? 'selected' : ''}`;
+    cell.className = `cal-day-cell ${colorClass} ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''}`;
     cell.innerHTML = `<span class="cal-day-num">${day}</span>`;
 
     cell.addEventListener('click', () => {
@@ -809,11 +821,9 @@ function renderCalendarView() {
     daysGrid.appendChild(cell);
   }
 
-  // Render Inspector & Past Day Editor below Calendar
-  const selectedDate = state.selectedHistoryDate || getTodayStr();
+  const selectedDate = state.selectedHistoryDate || todayStr;
   selectedDateLabel.textContent = formatDateDisplay(selectedDate);
 
-  // Weight for selected date
   const weightLog = state.weightLogs.find(w => w.date === selectedDate);
   if (weightLog) {
     weightValBox.textContent = `${weightLog.weight} kg`;
@@ -823,7 +833,6 @@ function renderCalendarView() {
     weightValBox.style.color = 'var(--text-muted)';
   }
 
-  // Habits breakdown with interactive toggle for editing past day
   habitsListContainer.innerHTML = '';
   if (state.habits.length === 0) {
     habitsListContainer.innerHTML = `<div class="empty-state">No habits created yet.</div>`;
@@ -848,7 +857,6 @@ function renderCalendarView() {
       </span>
     `;
 
-    // Click to toggle/edit past completion for selected date
     item.addEventListener('click', () => {
       toggleHabitCompletion(habit.id, selectedDate);
     });
@@ -1008,11 +1016,8 @@ function setupNavigation() {
     });
   });
 
-  document.getElementById('header-date').textContent = new Date().toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric'
-  });
+  // Accurate Header Date formatted in device's local timezone
+  document.getElementById('header-date').textContent = formatDateDisplay(getTodayStr());
 }
 
 function setupModals() {
@@ -1042,7 +1047,7 @@ function setupModals() {
     });
   });
 
-  let selectedEmoji = '🏃';
+  let selectedEmoji = '📞';
   const emojiOptions = document.querySelectorAll('.emoji-option');
   emojiOptions.forEach(opt => {
     opt.addEventListener('click', () => {
