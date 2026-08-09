@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wellness-v2';
+const CACHE_NAME = 'wellness-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -41,7 +41,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    fetch(event.request).then((response) => {
+    fetch(event.request, { cache: 'no-cache' }).then((response) => {
       // Refresh same-origin assets while preserving the live response.
       if (response && response.status === 200 && response.type === 'basic') {
         const responseToCache = response.clone();
