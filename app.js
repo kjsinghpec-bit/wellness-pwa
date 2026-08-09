@@ -2021,6 +2021,15 @@ function setupModals() {
 // ---------------------------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
+  if (typeof migrationService !== 'undefined') {
+    migrationService.initSchemaMetadata();
+    migrationService.handleStartupRecovery().then(res => {
+      if (res && res.status === 'diagnostic_attention') {
+        console.warn('Migration diagnostic attention needed:', res.errorCode);
+      }
+    });
+  }
+
   setupPasscodeLock();
   setupNavigation();
   setupCategoryChips();
