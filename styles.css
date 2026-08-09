@@ -247,6 +247,93 @@ body {
 }
 
 /* -------------------------------------------------------------
+   P1-2 ACTIVATION TIMER FLOATING BANNER
+------------------------------------------------------------- */
+.active-timer-banner {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 850;
+  width: 92%;
+  max-width: 440px;
+  background: rgba(21, 28, 44, 0.95);
+  border: 1.5px solid var(--accent-amber);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 15px rgba(245, 158, 11, 0.2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.timer-banner-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.timer-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.timer-icon { font-size: 1.5rem; }
+.timer-habit-name { font-size: 0.92rem; font-weight: 700; color: var(--text-primary); }
+.timer-target-label { font-size: 0.72rem; color: var(--accent-amber); }
+
+.timer-readout-box {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.timer-countdown {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--accent-primary);
+  font-variant-numeric: tabular-nums;
+  font-family: monospace;
+}
+
+.timer-actions-row {
+  display: flex;
+  gap: 6px;
+}
+
+.timer-btn {
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.timer-btn.btn-pause { background: rgba(255, 255, 255, 0.08); color: var(--text-primary); }
+.timer-btn.btn-cancel { background: rgba(244, 63, 94, 0.15); color: var(--accent-rose); }
+
+.timer-complete-box {
+  border-top: 1px solid var(--border-color);
+  margin-top: 10px;
+  padding-top: 10px;
+  text-align: center;
+}
+
+.complete-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--accent-emerald);
+}
+
+.complete-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* -------------------------------------------------------------
    APP HEADER
 ------------------------------------------------------------- */
 .app-header {
@@ -345,7 +432,7 @@ body {
 }
 
 /* -------------------------------------------------------------
-   VIEW 0: UNIFIED TODAY SCREEN (REFINED P1-1 POLISH)
+   VIEW 0: UNIFIED TODAY SCREEN (REFINED P1-1 POLISH + P1-2 JUST START)
 ------------------------------------------------------------- */
 .today-greeting-card {
   background: rgba(56, 189, 248, 0.06);

@@ -87,6 +87,38 @@
     </div>
   </div>
 
+  <!-- P1-2 ACTIVATION TIMER FLOATING BANNER -->
+  <div id="active-timer-banner" class="active-timer-banner" style="display: none;">
+    <div class="timer-banner-inner">
+      <div class="timer-info">
+        <span class="timer-icon" id="timer-habit-icon">⏱️</span>
+        <div>
+          <div class="timer-habit-name" id="timer-habit-name">Walk</div>
+          <div class="timer-target-label" id="timer-target-label">2 min Minimum Target</div>
+        </div>
+      </div>
+
+      <div class="timer-readout-box">
+        <span class="timer-countdown" id="timer-countdown-display">02:00</span>
+      </div>
+
+      <div class="timer-actions-row">
+        <button class="timer-btn btn-pause" id="timer-pause-btn">Pause</button>
+        <button class="timer-btn btn-cancel" id="timer-cancel-btn">Cancel</button>
+      </div>
+    </div>
+
+    <!-- MINIMUM COMPLETE PROMPT -->
+    <div id="timer-minimum-complete-box" class="timer-complete-box" style="display: none;">
+      <div class="complete-title">Minimum complete ✓</div>
+      <div class="complete-subtitle">Starting counts! You maintained your streak. Continue or finish?</div>
+      <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <button class="btn-primary" id="timer-continue-btn" style="flex: 1; padding: 8px; font-size: 0.8rem;">Continue toward ideal</button>
+        <button class="btn-secondary" id="timer-finish-here-btn" style="flex: 1; padding: 8px; font-size: 0.8rem;">Finish here</button>
+      </div>
+    </div>
+  </div>
+
   <!-- App Header -->
   <header class="app-header">
     <div class="brand">

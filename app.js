@@ -1,4 +1,4 @@
-/* Wellness PWA Main Application Script - v2.1.0 (P1-2 Just Start System) */
+/* Wellness PWA Main Application Script - v2.2.0 (P1-2 Just Start Minimum Viable Habit System) */
 
 // ---------------------------------------------------------------------------
 // 1. STOIC QUOTES DATASET
@@ -164,7 +164,7 @@ const STOIC_QUOTES = [
 // 2. CONSTANTS, SCHEMA VERSION & UTILITIES
 // ---------------------------------------------------------------------------
 const APP_SCHEMA_VERSION = 1;
-const APP_VERSION = "2.1.0";
+const APP_VERSION = "2.2.0";
 const TARGET_PASSCODE_HASH = "434f4d14c1eb231306b51aaa160c021b63670ac6ca67fb8e403f4500983dd1e4";
 
 async function sha256Hex(str) {
@@ -198,7 +198,8 @@ const STORAGE_KEYS = {
   SETTINGS: 'wellness_app_settings_data',
   HEALTH_HISTORY: 'wellness_health_history_logs',
   SESSION_UNLOCKED: 'wellness_session_unlocked',
-  LAST_HEALTH_CHECK: 'wellness_last_health_check_date'
+  LAST_HEALTH_CHECK: 'wellness_last_health_check_date',
+  ACTIVE_TIMER: 'wellness_active_timer_data'
 };
 
 const CLOUD_SYNC_ENDPOINT = 'https://crudcrud.com/api/df9fe4cc2a2b4f0ba158f3f54b74b576/wellness/6a7872454db36503e87d5f2b';
@@ -238,8 +239,10 @@ const DEFAULT_HABITS = [
     icon: '📞',
     category: 'Family',
     createdAt: getTodayStr(),
+    activationModeEnabled: false,
     completions: [getTodayStr()],
-    minimumCompletions: []
+    minimumCompletions: [],
+    completionRecords: [{ localDate: getTodayStr(), completionLevel: 'legacy_complete' }]
   },
   {
     id: 'h2',
@@ -247,20 +250,49 @@ const DEFAULT_HABITS = [
     icon: '💧',
     category: 'Health',
     createdAt: getTodayStr(),
+    activationModeEnabled: false,
     completions: [getTodayStr()],
-    minimumCompletions: []
+    minimumCompletions: [],
+    completionRecords: [{ localDate: getTodayStr(), completionLevel: 'legacy_complete' }]
   },
   {
     id: 'h3',
-    name: '30 Min Workout / Walk',
-    icon: '🏃',
+    name: 'Walk',
+    icon: '🚶',
     category: 'Health',
     createdAt: getTodayStr(),
     activationModeEnabled: true,
-    idealTarget: { type: 'duration', value: 30, unit: 'mins', label: '30 mins' },
-    minimumTarget: { type: 'duration', value: 2, unit: 'mins', label: '2 mins' },
+    idealTarget: { type: 'duration', value: 30, unit: 'mins', label: '30 min' },
+    minimumTarget: { type: 'duration', value: 2, unit: 'mins', label: '2 min' },
     completions: [],
-    minimumCompletions: []
+    minimumCompletions: [],
+    completionRecords: []
+  },
+  {
+    id: 'h4',
+    name: 'Meditation',
+    icon: '🧘',
+    category: 'Mind',
+    createdAt: getTodayStr(),
+    activationModeEnabled: true,
+    idealTarget: { type: 'duration', value: 15, unit: 'mins', label: '15 min' },
+    minimumTarget: { type: 'duration', value: 2, unit: 'mins', label: '2 min' },
+    completions: [],
+    minimumCompletions: [],
+    completionRecords: []
+  },
+  {
+    id: 'h5',
+    name: 'Reading',
+    icon: '📚',
+    category: 'Mind',
+    createdAt: getTodayStr(),
+    activationModeEnabled: true,
+    idealTarget: { type: 'duration', value: 20, unit: 'mins', label: '20 min' },
+    minimumTarget: { type: 'duration', value: 2, unit: 'mins', label: '1 page' },
+    completions: [],
+    minimumCompletions: [],
+    completionRecords: []
   }
 ];
 
@@ -309,8 +341,11 @@ const DEFAULT_SETTINGS = {
 class AppState {
   constructor() {
     this.habits = this.load(STORAGE_KEYS.HABITS, DEFAULT_HABITS);
-    // Ensure minimumCompletions field exists
-    this.habits.forEach(h => { if (!h.minimumCompletions) h.minimumCompletions = []; });
+    // Backward compatibility normalization
+    this.habits.forEach(h => {
+      if (!h.minimumCompletions) h.minimumCompletions = [];
+      if (!h.completionRecords) h.completionRecords = [];
+    });
 
     this.weightLogs = this.load(STORAGE_KEYS.WEIGHT_LOGS, generateDefaultWeightLogs());
     this.weightGoal = this.load(STORAGE_KEYS.WEIGHT_GOAL, 70.0);
@@ -387,7 +422,10 @@ class AppState {
         const record = await res.json();
         if (record && record.habits && record.habits.length > 0) {
           this.habits = record.habits;
-          this.habits.forEach(h => { if (!h.minimumCompletions) h.minimumCompletions = []; });
+          this.habits.forEach(h => {
+            if (!h.minimumCompletions) h.minimumCompletions = [];
+            if (!h.completionRecords) h.completionRecords = [];
+          });
 
           this.weightLogs = record.weightLogs || [];
           this.weightGoal = record.weightGoal || 70.0;
@@ -494,7 +532,7 @@ function setupPasscodeLock() {
 }
 
 // ---------------------------------------------------------------------------
-// 5. ESCALATING STREAK TOAST & DAYTIME REMINDER BANNER
+// 5. ESCALATING STREAK TOAST & ACTIVATION TIMER ENGINE (P1-2)
 // ---------------------------------------------------------------------------
 function checkStreakMilestone(habitName, streak) {
   if (streak === 7) {
@@ -515,6 +553,177 @@ function showMilestoneToast(title, desc, icon = '🎉') {
 
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 4500);
+}
+
+// --- P1-2 TIMER ENGINE WITH REAL TIMESTAMP ELAPSED TIME ---
+let activeTimerInterval = null;
+
+function getStoredTimerState() {
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.ACTIVE_TIMER);
+    return data ? JSON.parse(data) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveTimerState(timerObj) {
+  if (!timerObj) {
+    localStorage.removeItem(STORAGE_KEYS.ACTIVE_TIMER);
+  } else {
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_TIMER, JSON.stringify(timerObj));
+  }
+}
+
+function parseDurationToMs(targetObj, defaultMins = 2) {
+  if (!targetObj) return defaultMins * 60 * 1000;
+  if (typeof targetObj.value === 'number' && targetObj.value > 0) return targetObj.value * 60 * 1000;
+  if (targetObj.label) {
+    const match = targetObj.label.match(/(\d+)/);
+    if (match) return parseInt(match[1], 10) * 60 * 1000;
+  }
+  return defaultMins * 60 * 1000;
+}
+
+function startActivationTimer(habitId, targetLevel = 'minimum') {
+  triggerHapticFeedback();
+  const existingTimer = getStoredTimerState();
+  if (existingTimer && existingTimer.habitId === habitId && existingTimer.state === 'running') {
+    return; // Prevent accidental duplicate timers
+  }
+
+  const habit = state.habits.find(h => h.id === habitId);
+  if (!habit) return;
+
+  const targetConfig = targetLevel === 'ideal' ? habit.idealTarget : habit.minimumTarget;
+  const plannedDurationMs = parseDurationToMs(targetConfig, targetLevel === 'ideal' ? 30 : 2);
+
+  const timerState = {
+    habitId: habitId,
+    habitName: habit.name,
+    habitIcon: habit.icon || '🎯',
+    startDate: getTodayStr(), // Midnight boundary rule: belongs to localDate on start
+    startedAtMs: Date.now(),
+    plannedDurationMs: plannedDurationMs,
+    accumulatedPauseMs: 0,
+    lastPausedAtMs: null,
+    state: 'running',
+    targetLevel: targetLevel
+  };
+
+  saveTimerState(timerState);
+  initTimerEngine();
+}
+
+function initTimerEngine() {
+  if (activeTimerInterval) clearInterval(activeTimerInterval);
+
+  const timerState = getStoredTimerState();
+  const banner = document.getElementById('active-timer-banner');
+  if (!banner) return;
+
+  if (!timerState) {
+    banner.style.display = 'none';
+    return;
+  }
+
+  banner.style.display = 'block';
+  document.getElementById('timer-habit-icon').textContent = timerState.habitIcon || '⏱️';
+  document.getElementById('timer-habit-name').textContent = timerState.habitName;
+  document.getElementById('timer-target-label').textContent = timerState.targetLevel === 'ideal' ? 'Ideal Target' : 'Minimum Target';
+
+  const pauseBtn = document.getElementById('timer-pause-btn');
+  if (pauseBtn) pauseBtn.textContent = timerState.state === 'paused' ? 'Resume' : 'Pause';
+
+  const minCompleteBox = document.getElementById('timer-minimum-complete-box');
+  if (minCompleteBox) {
+    minCompleteBox.style.display = timerState.state === 'completed_minimum' ? 'block' : 'none';
+  }
+
+  updateTimerTick();
+  activeTimerInterval = setInterval(updateTimerTick, 500);
+}
+
+function updateTimerTick() {
+  const timerState = getStoredTimerState();
+  if (!timerState) {
+    if (activeTimerInterval) clearInterval(activeTimerInterval);
+    const banner = document.getElementById('active-timer-banner');
+    if (banner) banner.style.display = 'none';
+    return;
+  }
+
+  let elapsedMs = 0;
+  if (timerState.state === 'paused') {
+    elapsedMs = (timerState.lastPausedAtMs || Date.now()) - timerState.startedAtMs - timerState.accumulatedPauseMs;
+  } else {
+    elapsedMs = Date.now() - timerState.startedAtMs - timerState.accumulatedPauseMs;
+  }
+
+  const remainingMs = Math.max(0, timerState.plannedDurationMs - elapsedMs);
+
+  const mins = Math.floor(remainingMs / 60000);
+  const secs = Math.floor((remainingMs % 60000) / 1000);
+  const displayStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+  const countdownEl = document.getElementById('timer-countdown-display');
+  if (countdownEl) countdownEl.textContent = displayStr;
+
+  if (remainingMs <= 0 && timerState.state === 'running') {
+    timerState.state = 'completed_minimum';
+    saveTimerState(timerState);
+    triggerHapticFeedback();
+
+    toggleHabitCompletion(timerState.habitId, timerState.startDate, timerState.targetLevel);
+
+    const minCompleteBox = document.getElementById('timer-minimum-complete-box');
+    if (minCompleteBox) minCompleteBox.style.display = 'block';
+  }
+}
+
+function pauseOrResumeTimer() {
+  triggerHapticFeedback();
+  const timerState = getStoredTimerState();
+  if (!timerState) return;
+
+  if (timerState.state === 'running') {
+    timerState.state = 'paused';
+    timerState.lastPausedAtMs = Date.now();
+  } else if (timerState.state === 'paused') {
+    timerState.state = 'running';
+    if (timerState.lastPausedAtMs) {
+      timerState.accumulatedPauseMs += (Date.now() - timerState.lastPausedAtMs);
+      timerState.lastPausedAtMs = null;
+    }
+  }
+  saveTimerState(timerState);
+  initTimerEngine();
+}
+
+function cancelTimer() {
+  triggerHapticFeedback();
+  if (activeTimerInterval) clearInterval(activeTimerInterval);
+  saveTimerState(null);
+  const banner = document.getElementById('active-timer-banner');
+  if (banner) banner.style.display = 'none';
+}
+
+function finishTimerHere() {
+  triggerHapticFeedback();
+  cancelTimer();
+  renderTodayView();
+  renderHabitsView();
+}
+
+function continueToIdealTimer() {
+  triggerHapticFeedback();
+  const timerState = getStoredTimerState();
+  if (!timerState) return;
+
+  const habit = state.habits.find(h => h.id === timerState.habitId);
+  if (!habit) return finishTimerHere();
+
+  startActivationTimer(habit.id, 'ideal');
 }
 
 function checkDaytimeReminderAlert() {
@@ -571,6 +780,21 @@ function setupReminderBanner() {
 // ---------------------------------------------------------------------------
 // 6. P1-1 UNIFIED TODAY VIEW CONTROLLER (WITH P1-2 JUST START SYSTEM)
 // ---------------------------------------------------------------------------
+
+function getHabitCompletionLevel(habit, dateStr) {
+  if (!habit) return null;
+  if (habit.completionRecords) {
+    const rec = habit.completionRecords.find(r => r.localDate === dateStr);
+    if (rec && rec.completionLevel) return rec.completionLevel;
+  }
+  if (habit.minimumCompletions && habit.minimumCompletions.includes(dateStr)) {
+    return 'minimum';
+  }
+  if (habit.completions && habit.completions.includes(dateStr)) {
+    return 'legacy_complete';
+  }
+  return null;
+}
 
 function renderTodayView() {
   const todayStr = getTodayStr();
@@ -680,7 +904,7 @@ function renderTodayView() {
     }
   }
 
-  // 4. "Still worth doing today" Habits List (With P1-2 Just Start Minimum Targets)
+  // 4. "Still worth doing today" Habits List (P1-2 Just Start Priority CTAs)
   const todayHabitsContainer = document.getElementById('today-habits-list');
   const remainingCountBadge = document.getElementById('today-priorities-count');
 
@@ -704,53 +928,83 @@ function renderTodayView() {
 
       sortedHabits.forEach(habit => {
         const isDone = habit.completions.includes(todayStr);
-        const isMinDone = habit.minimumCompletions && habit.minimumCompletions.includes(todayStr);
-        const isActivationEnabled = habit.activationModeEnabled && habit.minimumTarget;
-
-        let targetBadgeHtml = '';
-        if (isMinDone) {
-          const label = habit.minimumTarget.label || (habit.minimumTarget.value + ' ' + habit.minimumTarget.unit);
-          targetBadgeHtml = `<span style="font-size: 0.72rem; background: rgba(16,185,129,0.15); color: var(--accent-emerald); font-weight: 700; padding: 2px 8px; border-radius: var(--radius-full);">⚡ Minimum Kept (${label})</span>`;
-        } else if (isActivationEnabled) {
-          const idealLabel = habit.idealTarget ? (habit.idealTarget.label || habit.idealTarget.value + 'm') : 'Ideal';
-          const minLabel = habit.minimumTarget.label || (habit.minimumTarget.value + 'm');
-          targetBadgeHtml = `<span style="font-size: 0.72rem; color: var(--text-muted);">Target: ${idealLabel} | Min: ${minLabel}</span>`;
-        }
-
-        let justStartBtnHtml = '';
-        if (!isDone && isActivationEnabled) {
-          const minLabel = habit.minimumTarget.label || (habit.minimumTarget.value + ' ' + habit.minimumTarget.unit);
-          justStartBtnHtml = `<button class="today-just-start-btn" style="background: rgba(245, 158, 11, 0.12); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.25); padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 700; cursor: pointer; margin-right: 8px;">⚡ Just Start (${minLabel})</button>`;
-        }
+        const level = getHabitCompletionLevel(habit, todayStr);
+        const isActivationEnabled = habit.activationModeEnabled;
 
         const item = document.createElement('div');
         item.className = `today-habit-item ${isDone ? 'completed' : ''}`;
-        item.innerHTML = `
-          <div class="today-habit-left">
-            <span class="today-habit-icon">${habit.icon || '🎯'}</span>
-            <div>
-              <div class="today-habit-name">${habit.name}</div>
-              ${targetBadgeHtml ? `<div style="margin-top: 2px;">${targetBadgeHtml}</div>` : ''}
+
+        if (isActivationEnabled && !isDone) {
+          // Uncompleted Activation Habit: Primary CTA is Starting!
+          const minLabel = habit.minimumTarget ? (habit.minimumTarget.label || habit.minimumTarget.value + ' min') : '2 min';
+          const idealLabel = habit.idealTarget ? (habit.idealTarget.label || habit.idealTarget.value + ' min') : '30 min';
+
+          item.innerHTML = `
+            <div class="today-habit-left">
+              <span class="today-habit-icon">${habit.icon || '🎯'}</span>
+              <div>
+                <div class="today-habit-name">${habit.name}</div>
+                <div style="font-size: 0.72rem; color: var(--text-muted);">Ideal: ${idealLabel} · Minimum: ${minLabel}</div>
+              </div>
             </div>
-          </div>
-          <div style="display: flex; align-items: center;">
-            ${justStartBtnHtml}
+            <button class="today-start-btn" style="background: linear-gradient(135deg, var(--accent-amber), #d97706); color: #000000; border: none; padding: 6px 14px; border-radius: var(--radius-full); font-size: 0.78rem; font-weight: 800; cursor: pointer;">
+              ⚡ Start ${minLabel}
+            </button>
+          `;
+
+          item.querySelector('.today-start-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            startActivationTimer(habit.id, 'minimum');
+          });
+        } else if (isActivationEnabled && level === 'minimum') {
+          // Minimum Complete: Options to Continue toward ideal or check off
+          item.innerHTML = `
+            <div class="today-habit-left">
+              <span class="today-habit-icon">${habit.icon || '🎯'}</span>
+              <div>
+                <div class="today-habit-name">${habit.name}</div>
+                <div style="font-size: 0.72rem; color: var(--accent-emerald); font-weight: 700;">Minimum complete ✓</div>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <button class="today-continue-btn" style="background: rgba(56, 189, 248, 0.12); color: var(--accent-primary); border: 1px solid var(--border-highlight); padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 700; cursor: pointer;">
+                Continue
+              </button>
+              <button class="today-habit-check-btn" aria-label="Toggle completion">✓</button>
+            </div>
+          `;
+
+          item.querySelector('.today-continue-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            startActivationTimer(habit.id, 'ideal');
+          });
+
+          item.querySelector('.today-habit-check-btn').addEventListener('click', () => {
+            toggleHabitCompletion(habit.id, todayStr, null);
+          });
+        } else {
+          // Simple Habit or Ideal Complete
+          let statusBadge = '';
+          if (level === 'ideal') statusBadge = '<span style="font-size: 0.72rem; color: var(--accent-emerald); font-weight: 700;">Ideal complete ✓</span>';
+          else if (level === 'legacy_complete') statusBadge = '<span style="font-size: 0.72rem; color: var(--text-muted);">Completed</span>';
+
+          item.innerHTML = `
+            <div class="today-habit-left">
+              <span class="today-habit-icon">${habit.icon || '🎯'}</span>
+              <div>
+                <div class="today-habit-name">${habit.name}</div>
+                ${statusBadge ? `<div style="margin-top: 2px;">${statusBadge}</div>` : ''}
+              </div>
+            </div>
             <button class="today-habit-check-btn" aria-label="Toggle completion">
               ✓
             </button>
-          </div>
-        `;
+          `;
 
-        if (justStartBtnHtml) {
-          item.querySelector('.today-just-start-btn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            toggleHabitCompletion(habit.id, todayStr, true);
+          item.querySelector('.today-habit-check-btn').addEventListener('click', () => {
+            toggleHabitCompletion(habit.id, todayStr, isDone ? null : (habit.activationModeEnabled ? 'ideal' : 'ideal'));
           });
         }
-
-        item.querySelector('.today-habit-check-btn').addEventListener('click', () => {
-          toggleHabitCompletion(habit.id, todayStr, false);
-        });
 
         todayHabitsContainer.appendChild(item);
       });
@@ -793,7 +1047,7 @@ function renderTodayView() {
 }
 
 // ---------------------------------------------------------------------------
-// 7. HABIT TRACKER CONTROLLER (P1-2 JUST START SYSTEM)
+// 7. HABIT TRACKER CONTROLLER (P1-2 COMPLETION LEVEL ARCHITECTURE)
 // ---------------------------------------------------------------------------
 
 function calculateStreak(completions, allowGrace = state.settings.streakGraceEnabled) {
@@ -900,7 +1154,7 @@ function renderHabitsView() {
 
   filteredHabits.forEach((habit) => {
     const isDoneToday = habit.completions.includes(todayStr);
-    const isMinDoneToday = habit.minimumCompletions && habit.minimumCompletions.includes(todayStr);
+    const level = getHabitCompletionLevel(habit, todayStr);
     const streakInfo = calculateStreak(habit.completions);
     const consistencyPct = calculateConsistency30Day(habit.completions);
 
@@ -918,15 +1172,16 @@ function renderHabitsView() {
     }).join('');
 
     let justStartBtnHtml = '';
-    if (!isDoneToday && habit.activationModeEnabled && habit.minimumTarget) {
-      const minLabel = habit.minimumTarget.label || (habit.minimumTarget.value + ' ' + habit.minimumTarget.unit);
-      justStartBtnHtml = `<button class="habit-just-start-btn" style="background: rgba(245, 158, 11, 0.12); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.25); padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 700; cursor: pointer; margin-right: 8px;">⚡ Just Start (${minLabel})</button>`;
+    if (!isDoneToday && habit.activationModeEnabled) {
+      const minLabel = habit.minimumTarget ? (habit.minimumTarget.label || habit.minimumTarget.value + ' min') : '2 min';
+      justStartBtnHtml = `<button class="habit-just-start-btn" style="background: linear-gradient(135deg, var(--accent-amber), #d97706); color: #000000; border: none; padding: 5px 12px; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 800; cursor: pointer; margin-right: 8px;">⚡ Start ${minLabel}</button>`;
     }
 
     let minBadgeHtml = '';
-    if (isMinDoneToday) {
-      const minLabel = habit.minimumTarget ? (habit.minimumTarget.label || habit.minimumTarget.value + 'm') : '2m';
-      minBadgeHtml = `<span class="grace-badge" style="background: rgba(16,185,129,0.15); color: var(--accent-emerald);">⚡ Min Kept (${minLabel})</span>`;
+    if (level === 'minimum') {
+      minBadgeHtml = `<span class="grace-badge" style="background: rgba(16,185,129,0.15); color: var(--accent-emerald);">Minimum complete ✓</span>`;
+    } else if (level === 'ideal') {
+      minBadgeHtml = `<span class="grace-badge" style="background: rgba(56,189,248,0.15); color: var(--accent-primary);">Ideal complete ✓</span>`;
     }
 
     const card = document.createElement('div');
@@ -968,12 +1223,12 @@ function renderHabitsView() {
     if (justStartBtnHtml) {
       card.querySelector('.habit-just-start-btn').addEventListener('click', (e) => {
         e.stopPropagation();
-        toggleHabitCompletion(habit.id, todayStr, true);
+        startActivationTimer(habit.id, 'minimum');
       });
     }
 
     card.querySelector('.habit-toggle-btn').addEventListener('click', () => {
-      toggleHabitCompletion(habit.id, todayStr, false);
+      toggleHabitCompletion(habit.id, todayStr, isDoneToday ? null : (habit.activationModeEnabled ? 'ideal' : 'ideal'));
     });
 
     card.querySelector('.delete-btn').addEventListener('click', () => {
@@ -987,35 +1242,50 @@ function renderHabitsView() {
   habitsSubtitle.textContent = `${doneTodayCount} of ${state.habits.length} habits completed today`;
 }
 
-function toggleHabitCompletion(habitId, dateStr = getTodayStr(), isMinimum = false) {
+function toggleHabitCompletion(habitId, dateStr = getTodayStr(), level = null) {
   triggerHapticFeedback();
   const habit = state.habits.find(h => h.id === habitId);
   if (!habit) return;
 
+  if (!habit.completionRecords) habit.completionRecords = [];
   if (!habit.minimumCompletions) habit.minimumCompletions = [];
 
   const idx = habit.completions.indexOf(dateStr);
-  const minIdx = habit.minimumCompletions.indexOf(dateStr);
+  const recordIdx = habit.completionRecords.findIndex(r => r.localDate === dateStr);
 
-  if (isMinimum) {
-    if (idx === -1) {
-      habit.completions.push(dateStr);
+  if (idx > -1 && level === null) {
+    // Toggling OFF when already complete
+    habit.completions.splice(idx, 1);
+    if (recordIdx > -1) habit.completionRecords.splice(recordIdx, 1);
+    const minIdx = habit.minimumCompletions.indexOf(dateStr);
+    if (minIdx > -1) habit.minimumCompletions.splice(minIdx, 1);
+  } else {
+    // Marking complete or updating level
+    const targetLevel = level || (habit.activationModeEnabled ? 'ideal' : 'ideal');
+
+    if (idx === -1) habit.completions.push(dateStr);
+
+    if (targetLevel === 'minimum') {
+      if (!habit.minimumCompletions.includes(dateStr)) habit.minimumCompletions.push(dateStr);
+    } else {
+      const minIdx = habit.minimumCompletions.indexOf(dateStr);
+      if (minIdx > -1) habit.minimumCompletions.splice(minIdx, 1);
     }
-    if (minIdx === -1) {
-      habit.minimumCompletions.push(dateStr);
+
+    const newRecord = {
+      localDate: dateStr,
+      completionLevel: targetLevel,
+      completedAt: new Date().toISOString()
+    };
+
+    if (recordIdx > -1) {
+      habit.completionRecords[recordIdx] = newRecord;
+    } else {
+      habit.completionRecords.push(newRecord);
     }
+
     const streakInfo = calculateStreak(habit.completions);
     checkStreakMilestone(habit.name, streakInfo.streak);
-  } else {
-    if (idx > -1) {
-      habit.completions.splice(idx, 1);
-      if (minIdx > -1) habit.minimumCompletions.splice(minIdx, 1);
-    } else {
-      habit.completions.push(dateStr);
-      if (minIdx > -1) habit.minimumCompletions.splice(minIdx, 1);
-      const streakInfo = calculateStreak(habit.completions);
-      checkStreakMilestone(habit.name, streakInfo.streak);
-    }
   }
 
   state.saveHabits();
@@ -1579,7 +1849,12 @@ function renderCalendarView() {
   let completedOnDateCount = 0;
   state.habits.forEach(habit => {
     const isDone = habit.completions.includes(selectedDate);
+    const level = getHabitCompletionLevel(habit, selectedDate);
     if (isDone) completedOnDateCount++;
+
+    let levelLabel = '✓ Completed';
+    if (level === 'minimum') levelLabel = '⚡ Min Complete';
+    else if (level === 'ideal') levelLabel = '✓ Ideal Complete';
 
     const item = document.createElement('div');
     item.className = `history-habit-item ${isDone ? 'done' : 'not-done'}`;
@@ -1589,11 +1864,11 @@ function renderCalendarView() {
         <span>${habit.name}</span>
       </div>
       <span class="${isDone ? 'history-badge-done' : 'history-badge-not-done'}">
-        ${isDone ? '✓ Completed' : '○ Pending'}
+        ${isDone ? levelLabel : '○ Pending'}
       </span>
     `;
 
-    item.addEventListener('click', () => toggleHabitCompletion(habit.id, selectedDate, false));
+    item.addEventListener('click', () => toggleHabitCompletion(habit.id, selectedDate, null));
     habitsListContainer.appendChild(item);
   });
 
@@ -1836,7 +2111,7 @@ function renderInsightsDashboard() {
 }
 
 // ---------------------------------------------------------------------------
-// 13. P0A-1A DATA BACKUP & DRY-RUN INSPECTOR ENGINE (HARDENED)
+// 13. P0A-1A DATA BACKUP & DRY-RUN INSPECTOR ENGINE (HARDENED FOR P1-2)
 // ---------------------------------------------------------------------------
 
 function calculatePayloadRecordCounts(payload) {
@@ -2213,6 +2488,17 @@ function setupModals() {
     });
   }
 
+  // Activation Timer Event Listeners
+  const pauseBtn = document.getElementById('timer-pause-btn');
+  const cancelBtn = document.getElementById('timer-cancel-btn');
+  const continueBtn = document.getElementById('timer-continue-btn');
+  const finishBtn = document.getElementById('timer-finish-here-btn');
+
+  if (pauseBtn) pauseBtn.addEventListener('click', pauseOrResumeTimer);
+  if (cancelBtn) cancelBtn.addEventListener('click', cancelTimer);
+  if (continueBtn) continueBtn.addEventListener('click', continueToIdealTimer);
+  if (finishBtn) finishBtn.addEventListener('click', finishTimerHere);
+
   document.getElementById('header-action-btn').addEventListener('click', () => {
     if (state.activeTab === 'food') {
       document.getElementById('food-date-input').value = getTodayStr();
@@ -2267,8 +2553,8 @@ function setupModals() {
     const name = nameInput.value.trim();
 
     const isActivation = activationToggle ? activationToggle.checked : false;
-    const idealVal = document.getElementById('habit-ideal-target').value.trim() || '30 mins';
-    const minVal = document.getElementById('habit-minimum-target').value.trim() || '2 mins';
+    const idealVal = document.getElementById('habit-ideal-target').value.trim() || '30 min';
+    const minVal = document.getElementById('habit-minimum-target').value.trim() || '2 min';
 
     if (name) {
       state.habits.push({
@@ -2281,7 +2567,8 @@ function setupModals() {
         idealTarget: { type: 'duration', label: idealVal },
         minimumTarget: { type: 'duration', label: minVal },
         completions: [],
-        minimumCompletions: []
+        minimumCompletions: [],
+        completionRecords: []
       });
       state.saveHabits();
       renderTodayView();
@@ -2354,6 +2641,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupModals();
   setupDataExport();
   
+  initTimerEngine();
   renderTodayView();
   renderHabitsView();
   renderFoodView();
