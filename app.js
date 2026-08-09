@@ -1,4 +1,4 @@
-/* Wellness PWA Main Application Script */
+/* Wellness PWA Main Application Script - v2 Refinement */
 
 // ---------------------------------------------------------------------------
 // 1. STOIC QUOTES DATASET
@@ -161,9 +161,8 @@ const STOIC_QUOTES = [
 ];
 
 // ---------------------------------------------------------------------------
-// 2. SECURE PASSCODE HASH SECURITY & CLOUD DATABASE ENGINE
+// 2. CONSTANTS & UTILITIES
 // ---------------------------------------------------------------------------
-// SHA-256 Hash of Passcode "1727"
 const TARGET_PASSCODE_HASH = "434f4d14c1eb231306b51aaa160c021b63670ac6ca67fb8e403f4500983dd1e4";
 
 async function sha256Hex(str) {
@@ -178,6 +177,11 @@ const STORAGE_KEYS = {
   WEIGHT_LOGS: 'wellness_weight_logs_data',
   WEIGHT_GOAL: 'wellness_weight_goal_data',
   FOOD_LOGS: 'wellness_food_logs_data',
+  EVENING_REVIEWS: 'wellness_evening_reviews_data',
+  SAVED_QUOTES: 'wellness_saved_quotes_data',
+  DAILY_REACTIONS: 'wellness_daily_reactions_data',
+  SETTINGS: 'wellness_app_settings_data',
+  HEALTH_HISTORY: 'wellness_health_history_logs',
   SESSION_UNLOCKED: 'wellness_session_unlocked',
   LAST_HEALTH_CHECK: 'wellness_last_health_check_date'
 };
@@ -185,28 +189,34 @@ const STORAGE_KEYS = {
 const CLOUD_SYNC_ENDPOINT = 'https://crudcrud.com/api/df9fe4cc2a2b4f0ba158f3f54b74b576/wellness/6a7872454db36503e87d5f2b';
 const PUBLIC_LIVE_URL = 'https://kjsinghpec-bit.github.io/wellness-pwa/';
 
-// Accurate Real-World Date in Device's Local Timezone (YYYY-MM-DD)
 function getTodayStr() {
   const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function formatDateDisplay(dateStr) {
   if (!dateStr) return '';
   const parts = dateStr.split('-').map(Number);
   const d = new Date(parts[0], parts[1] - 1, parts[2]);
-  const options = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
-  return d.toLocaleDateString('en-US', options);
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+// Visual Haptic Effect Helper
+function triggerHapticFeedback() {
+  if ('vibrate' in navigator) {
+    try { navigator.vibrate(15); } catch (e) {}
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 3. DEFAULTS & STATE MANAGEMENT
+// ---------------------------------------------------------------------------
 const DEFAULT_HABITS = [
   {
     id: 'h1',
     name: 'Call Wife 📞 (Every 3 hrs active)',
     icon: '📞',
+    category: 'Family',
     createdAt: getTodayStr(),
     completions: [getTodayStr()]
   },
@@ -214,6 +224,7 @@ const DEFAULT_HABITS = [
     id: 'h2',
     name: 'Morning Hydration (500ml)',
     icon: '💧',
+    category: 'Health',
     createdAt: getTodayStr(),
     completions: [getTodayStr()]
   },
@@ -221,6 +232,7 @@ const DEFAULT_HABITS = [
     id: 'h3',
     name: '30 Min Workout / Walk',
     icon: '🏃',
+    category: 'Health',
     createdAt: getTodayStr(),
     completions: []
   }
@@ -243,15 +255,13 @@ function generateDefaultWeightLogs() {
   ];
 }
 
-const DEFAULT_WEIGHT_LOGS = generateDefaultWeightLogs();
-const DEFAULT_GOAL = 70.0;
-
 const DEFAULT_FOOD_LOGS = [
   {
     id: 'f1',
     date: getTodayStr(),
     mealType: 'Lunch',
-    description: '2 Chapati, Dal Tadka, Bhindi Sabzi, Curd & Cucumber Salad',
+    description: '2 Chapati, Dal Tadka, Bhindi Sabzi, Curd & Salad',
+    tags: ['Homemade', 'High Protein'],
     timestamp: '13:30'
   },
   {
@@ -259,17 +269,31 @@ const DEFAULT_FOOD_LOGS = [
     date: getTodayStr(),
     mealType: 'Snack / Tea',
     description: 'Masala Tea & 2 Marie Biscuits',
+    tags: ['Light'],
     timestamp: '17:00'
   }
 ];
 
+const DEFAULT_SETTINGS = {
+  reminderStart: '09:00',
+  reminderEnd: '21:00',
+  streakGraceEnabled: true
+};
+
 class AppState {
   constructor() {
     this.habits = this.load(STORAGE_KEYS.HABITS, DEFAULT_HABITS);
-    this.weightLogs = this.load(STORAGE_KEYS.WEIGHT_LOGS, DEFAULT_WEIGHT_LOGS);
-    this.weightGoal = this.load(STORAGE_KEYS.WEIGHT_GOAL, DEFAULT_GOAL);
+    this.weightLogs = this.load(STORAGE_KEYS.WEIGHT_LOGS, generateDefaultWeightLogs());
+    this.weightGoal = this.load(STORAGE_KEYS.WEIGHT_GOAL, 70.0);
     this.foodLogs = this.load(STORAGE_KEYS.FOOD_LOGS, DEFAULT_FOOD_LOGS);
+    this.eveningReviews = this.load(STORAGE_KEYS.EVENING_REVIEWS, {});
+    this.savedQuotes = this.load(STORAGE_KEYS.SAVED_QUOTES, []);
+    this.dailyReactions = this.load(STORAGE_KEYS.DAILY_REACTIONS, {});
+    this.settings = this.load(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
+    this.healthHistory = this.load(STORAGE_KEYS.HEALTH_HISTORY, []);
+
     this.activeTab = 'habits';
+    this.activeCategoryFilter = 'ALL';
     
     const today = new Date();
     this.selectedHistoryDate = getTodayStr();
@@ -296,15 +320,16 @@ class AppState {
   }
 
   saveHabits() { this.save(STORAGE_KEYS.HABITS, this.habits); }
-
   saveWeightLogs() {
     this.weightLogs.sort((a, b) => new Date(a.date) - new Date(b.date));
     this.save(STORAGE_KEYS.WEIGHT_LOGS, this.weightLogs);
   }
-
   saveWeightGoal() { this.save(STORAGE_KEYS.WEIGHT_GOAL, this.weightGoal); }
-
   saveFoodLogs() { this.save(STORAGE_KEYS.FOOD_LOGS, this.foodLogs); }
+  saveEveningReviews() { this.save(STORAGE_KEYS.EVENING_REVIEWS, this.eveningReviews); }
+  saveSavedQuotes() { this.save(STORAGE_KEYS.SAVED_QUOTES, this.savedQuotes); }
+  saveDailyReactions() { this.save(STORAGE_KEYS.DAILY_REACTIONS, this.dailyReactions); }
+  saveSettings() { this.save(STORAGE_KEYS.SETTINGS, this.settings); }
 
   async syncToCloud() {
     try {
@@ -313,6 +338,7 @@ class AppState {
         weightLogs: this.weightLogs,
         weightGoal: this.weightGoal,
         foodLogs: this.foodLogs,
+        eveningReviews: this.eveningReviews,
         updatedAt: new Date().toISOString()
       };
       fetch(CLOUD_SYNC_ENDPOINT, {
@@ -331,13 +357,15 @@ class AppState {
         if (record && record.habits && record.habits.length > 0) {
           this.habits = record.habits;
           this.weightLogs = record.weightLogs || [];
-          this.weightGoal = record.weightGoal || DEFAULT_GOAL;
+          this.weightGoal = record.weightGoal || 70.0;
           this.foodLogs = record.foodLogs || [];
-          
+          this.eveningReviews = record.eveningReviews || {};
+
           localStorage.setItem(STORAGE_KEYS.HABITS, JSON.stringify(this.habits));
           localStorage.setItem(STORAGE_KEYS.WEIGHT_LOGS, JSON.stringify(this.weightLogs));
           localStorage.setItem(STORAGE_KEYS.WEIGHT_GOAL, JSON.stringify(this.weightGoal));
           localStorage.setItem(STORAGE_KEYS.FOOD_LOGS, JSON.stringify(this.foodLogs));
+          localStorage.setItem(STORAGE_KEYS.EVENING_REVIEWS, JSON.stringify(this.eveningReviews));
 
           renderHabitsView();
           renderFoodView();
@@ -352,7 +380,7 @@ class AppState {
 const state = new AppState();
 
 // ---------------------------------------------------------------------------
-// 3. SECURE PASSCODE AUTO-LOCK ON APP LAUNCH
+// 4. PASSCODE AUTO-LOCK ENGINE
 // ---------------------------------------------------------------------------
 let currentPinInput = "";
 
@@ -372,6 +400,7 @@ function setupPasscodeLock() {
 
   document.querySelectorAll('.keypad-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      triggerHapticFeedback();
       const key = btn.getAttribute('data-key');
       errorContainer.textContent = "";
 
@@ -386,9 +415,7 @@ function setupPasscodeLock() {
       updatePinDots();
 
       if (currentPinInput.length === 4) {
-        setTimeout(() => {
-          verifyPasscode(currentPinInput);
-        }, 120);
+        setTimeout(() => verifyPasscode(currentPinInput), 120);
       }
     });
   });
@@ -411,6 +438,7 @@ function setupPasscodeLock() {
       overlay.classList.remove('active');
       currentPinInput = "";
       updatePinDots();
+      checkDaytimeReminderAlert();
     } else {
       errorContainer.textContent = "Incorrect passcode. Try again.";
       currentPinInput = "";
@@ -432,46 +460,111 @@ function setupPasscodeLock() {
 }
 
 // ---------------------------------------------------------------------------
-// 4. STREAK MILESTONE CELEBRATION TOAST
+// 5. ESCALATING STREAK TOAST & DAYTIME REMINDER BANNER
 // ---------------------------------------------------------------------------
 function checkStreakMilestone(habitName, streak) {
-  const milestoneList = [7, 14, 21, 30, 50, 100, 365];
-  if (milestoneList.includes(streak)) {
-    showMilestoneToast(`🔥 ${streak}-Day Streak Achieved!`, `Awesome job! You hit ${streak} days in a row on "${habitName}".`);
+  if (streak === 7) {
+    showMilestoneToast('✨ Checkmark!', `Solid discipline! You hit a 7-day streak on "${habitName}".`, '✨');
+  } else if (streak === 14) {
+    showMilestoneToast('🔥 14-Day Streak!', `Impressive momentum! 2 full weeks on "${habitName}".`, '🔥');
+  } else if (streak >= 30 && streak % 10 === 0) {
+    showMilestoneToast('🎉 Master Milestone!', `Outstanding commitment! ${streak} days in a row on "${habitName}".`, '🎉');
   }
 }
 
-function showMilestoneToast(title, desc) {
+function showMilestoneToast(title, desc, icon = '🎉') {
+  triggerHapticFeedback();
   const toast = document.getElementById('milestone-toast');
+  document.getElementById('milestone-icon').textContent = icon;
   document.getElementById('milestone-title').textContent = title;
   document.getElementById('milestone-desc').textContent = desc;
 
   toast.classList.add('show');
-  setTimeout(() => {
-    toast.classList.remove('show');
-  }, 4000);
+  setTimeout(() => toast.classList.remove('show'), 4500);
+}
+
+function checkDaytimeReminderAlert() {
+  const callWifeHabit = state.habits.find(h => h.name.includes('Call Wife'));
+  if (!callWifeHabit) return;
+
+  const todayStr = getTodayStr();
+  const isDoneToday = callWifeHabit.completions.includes(todayStr);
+
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const [sH, sM] = (state.settings.reminderStart || '09:00').split(':').map(Number);
+  const [eH, eM] = (state.settings.reminderEnd || '21:00').split(':').map(Number);
+
+  const startMinutes = sH * 60 + sM;
+  const endMinutes = eH * 60 + eM;
+
+  const isDaytimeActive = currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+
+  const banner = document.getElementById('reminder-fallback-banner');
+  if (isDaytimeActive && !isDoneToday) {
+    banner.style.display = 'block';
+  } else {
+    banner.style.display = 'none';
+  }
+
+  // Web Notification API Request
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  } else if ('Notification' in window && Notification.permission === 'granted' && isDaytimeActive && !isDoneToday) {
+    try {
+      new Notification('Reminder: Call Wife 📞', {
+        body: 'Take a minute during your active hours to check in!',
+        icon: 'apple-touch-icon.png'
+      });
+    } catch (e) {}
+  }
+}
+
+function setupReminderBanner() {
+  document.getElementById('reminder-done-btn').addEventListener('click', () => {
+    const callWifeHabit = state.habits.find(h => h.name.includes('Call Wife'));
+    if (callWifeHabit) {
+      toggleHabitCompletion(callWifeHabit.id, getTodayStr());
+    }
+    document.getElementById('reminder-fallback-banner').style.display = 'none';
+  });
+
+  document.getElementById('reminder-close-btn').addEventListener('click', () => {
+    document.getElementById('reminder-fallback-banner').style.display = 'none';
+  });
 }
 
 // ---------------------------------------------------------------------------
-// 5. HABIT TRACKER CONTROLLER
+// 6. HABIT TRACKER CONTROLLER (Grace Period & 30-Day Discipline Score)
 // ---------------------------------------------------------------------------
 
-function calculateStreak(completions) {
-  if (!completions || completions.length === 0) return 0;
-  
+function calculateStreak(completions, allowGrace = state.settings.streakGraceEnabled) {
+  if (!completions || completions.length === 0) return { streak: 0, inGrace: false };
+
   const set = new Set(completions);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   let streak = 0;
-  let checkDate = new Date(today);
+  let inGrace = false;
+  let missedAllowed = allowGrace ? 1 : 0;
 
+  let checkDate = new Date(today);
   const todayStr = getTodayStr();
+
   if (!set.has(todayStr)) {
     checkDate.setDate(checkDate.getDate() - 1);
     const yesterdayStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+    
     if (!set.has(yesterdayStr)) {
-      return 0;
+      if (missedAllowed > 0) {
+        missedAllowed--;
+        inGrace = true;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        return { streak: 0, inGrace: false };
+      }
     }
   }
 
@@ -480,12 +573,32 @@ function calculateStreak(completions) {
     if (set.has(dateStr)) {
       streak++;
       checkDate.setDate(checkDate.getDate() - 1);
+    } else if (missedAllowed > 0) {
+      missedAllowed--;
+      inGrace = true;
+      checkDate.setDate(checkDate.getDate() - 1);
     } else {
       break;
     }
   }
 
-  return streak;
+  return { streak, inGrace };
+}
+
+function calculateConsistency30Day(completions) {
+  const set = new Set(completions);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let doneCount = 0;
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (set.has(dateStr)) doneCount++;
+  }
+
+  return Math.round((doneCount / 30) * 100);
 }
 
 function getPast7Days() {
@@ -508,11 +621,14 @@ function renderHabitsView() {
 
   habitsListContainer.innerHTML = '';
 
-  if (state.habits.length === 0) {
+  const category = state.activeCategoryFilter || 'ALL';
+  const filteredHabits = category === 'ALL' ? state.habits : state.habits.filter(h => h.category === category);
+
+  if (filteredHabits.length === 0) {
     habitsListContainer.innerHTML = `
       <div class="empty-state">
         <div class="empty-state-icon">🌱</div>
-        <p>No habits added yet. Tap <strong>+ Add Habit</strong> above to get started!</p>
+        <p>No habits found in this category. Tap <strong>+ Add Habit</strong> to create one!</p>
       </div>
     `;
     completionPill.textContent = '0/0 Done';
@@ -523,11 +639,12 @@ function renderHabitsView() {
   let doneTodayCount = 0;
   const daysWindow = getPast7Days();
 
-  state.habits.forEach((habit) => {
-    const isDoneToday = habit.completions.includes(todayStr);
-    if (isDoneToday) doneTodayCount++;
+  state.habits.forEach(h => { if (h.completions.includes(todayStr)) doneTodayCount++; });
 
-    const streak = calculateStreak(habit.completions);
+  filteredHabits.forEach((habit) => {
+    const isDoneToday = habit.completions.includes(todayStr);
+    const streakInfo = calculateStreak(habit.completions);
+    const consistencyPct = calculateConsistency30Day(habit.completions);
 
     const weeklyRowHtml = daysWindow.map(d => {
       const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -550,8 +667,15 @@ function renderHabitsView() {
           <div class="habit-icon">${habit.icon || '🎯'}</div>
           <div>
             <div class="habit-name">${habit.name}</div>
-            <div class="streak-badge">
-              🔥 ${streak} ${streak === 1 ? 'day' : 'days'} streak
+            <div class="habit-meta-row">
+              <span class="streak-badge">
+                🔥 ${streakInfo.streak} ${streakInfo.streak === 1 ? 'day' : 'days'}
+              </span>
+              <span class="consistency-badge" title="Rolling 30-Day Completion Rate">
+                🎯 ${consistencyPct}% 30-day
+              </span>
+              ${streakInfo.inGrace ? `<span class="grace-badge">🛡️ Grace Active</span>` : ''}
+              <span class="category-tag">${habit.category || 'General'}</span>
             </div>
           </div>
         </div>
@@ -579,10 +703,11 @@ function renderHabitsView() {
   });
 
   completionPill.textContent = `${doneTodayCount}/${state.habits.length} Done`;
-  habitsSubtitle.textContent = `${doneTodayCount} of ${state.habits.length} completed for today`;
+  habitsSubtitle.textContent = `${doneTodayCount} of ${state.habits.length} habits completed today`;
 }
 
 function toggleHabitCompletion(habitId, dateStr = getTodayStr()) {
+  triggerHapticFeedback();
   const habit = state.habits.find(h => h.id === habitId);
   if (!habit) return;
 
@@ -592,13 +717,14 @@ function toggleHabitCompletion(habitId, dateStr = getTodayStr()) {
     habit.completions.splice(idx, 1);
   } else {
     habit.completions.push(dateStr);
-    const newStreak = calculateStreak(habit.completions);
-    checkStreakMilestone(habit.name, newStreak);
+    const streakInfo = calculateStreak(habit.completions);
+    checkStreakMilestone(habit.name, streakInfo.streak);
   }
 
   state.saveHabits();
   renderHabitsView();
   renderCalendarView();
+  checkDaytimeReminderAlert();
 }
 
 function deleteHabit(habitId) {
@@ -610,8 +736,19 @@ function deleteHabit(habitId) {
   }
 }
 
+function setupCategoryChips() {
+  document.querySelectorAll('#category-chips .cat-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#category-chips .cat-chip').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.activeCategoryFilter = btn.getAttribute('data-cat');
+      renderHabitsView();
+    });
+  });
+}
+
 // ---------------------------------------------------------------------------
-// 6. DAILY FOOD JOURNAL CONTROLLER (Manual Indian Meals)
+// 7. DAILY FOOD JOURNAL CONTROLLER (Tags, Autocomplete & Summary Strip)
 // ---------------------------------------------------------------------------
 
 function renderFoodView() {
@@ -624,6 +761,9 @@ function renderFoodView() {
   foodListContainer.innerHTML = '';
   subtitle.textContent = `${todayFood.length} meal ${todayFood.length === 1 ? 'entry' : 'entries'} logged for today`;
 
+  // Render Weekly Summary Strip Metrics
+  renderFoodSummaryStrip();
+
   if (todayFood.length === 0) {
     foodListContainer.innerHTML = `
       <div class="empty-state">
@@ -635,6 +775,8 @@ function renderFoodView() {
   }
 
   todayFood.forEach(item => {
+    const tagsHtml = (item.tags || []).map(t => `<span class="food-tag-pill">${t}</span>`).join('');
+
     const card = document.createElement('div');
     card.className = 'food-card';
     card.innerHTML = `
@@ -646,6 +788,7 @@ function renderFoodView() {
         </div>
       </div>
       <div class="food-desc">${item.description}</div>
+      ${tagsHtml ? `<div class="food-tags-row">${tagsHtml}</div>` : ''}
     `;
 
     card.querySelector('.delete-btn').addEventListener('click', () => {
@@ -654,6 +797,40 @@ function renderFoodView() {
 
     foodListContainer.appendChild(card);
   });
+}
+
+function renderFoodSummaryStrip() {
+  const past7Days = getPast7Days();
+
+  let totalMealsWeek = 0;
+  let fullMealDays = 0;
+  let homemadeCount = 0;
+  let totalTaggedMeals = 0;
+
+  past7Days.forEach(d => {
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const dayMeals = state.foodLogs.filter(f => f.date === dateStr);
+
+    totalMealsWeek += dayMeals.length;
+
+    const slots = new Set(dayMeals.map(f => f.mealType));
+    if (slots.has('Breakfast') && slots.has('Lunch') && slots.has('Dinner') && slots.has('Snack / Tea')) {
+      fullMealDays++;
+    }
+
+    dayMeals.forEach(m => {
+      if (m.tags && m.tags.length > 0) {
+        totalTaggedMeals++;
+        if (m.tags.includes('Homemade')) homemadeCount++;
+      }
+    });
+  });
+
+  document.getElementById('meals-logged-count').textContent = totalMealsWeek;
+  document.getElementById('green-meal-days').textContent = `${fullMealDays}/7`;
+  
+  const homemadePct = totalTaggedMeals > 0 ? Math.round((homemadeCount / totalTaggedMeals) * 100) : 100;
+  document.getElementById('homemade-pct').textContent = `${homemadePct}%`;
 }
 
 function deleteFoodLog(foodId) {
@@ -680,11 +857,32 @@ function setupFoodSection() {
     });
   });
 
+  // Frequent Dishes Autocomplete
+  document.querySelectorAll('#frequent-dishes-chips .freq-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const text = chip.getAttribute('data-text');
+      document.getElementById('food-desc-input').value = text;
+    });
+  });
+
+  // Qualitative Tag Selection
+  document.querySelectorAll('#food-tag-chips .tag-chip').forEach(tagChip => {
+    tagChip.addEventListener('click', () => {
+      tagChip.classList.toggle('selected');
+    });
+  });
+
   document.getElementById('log-food-form').addEventListener('submit', (e) => {
     e.preventDefault();
+    triggerHapticFeedback();
     const mealType = document.getElementById('food-meal-type').value;
     const desc = document.getElementById('food-desc-input').value.trim();
     const dateVal = document.getElementById('food-date-input').value;
+
+    const selectedTags = [];
+    document.querySelectorAll('#food-tag-chips .tag-chip.selected').forEach(tc => {
+      selectedTags.push(tc.getAttribute('data-tag'));
+    });
 
     if (desc && dateVal) {
       const now = new Date();
@@ -695,6 +893,7 @@ function setupFoodSection() {
         date: dateVal,
         mealType: mealType,
         description: desc,
+        tags: selectedTags,
         timestamp: timeStr
       });
 
@@ -709,7 +908,7 @@ function setupFoodSection() {
 }
 
 // ---------------------------------------------------------------------------
-// 7. WEIGHT TRACKER & WEIGHT ROTATOR WHEEL (Updates all 3 Stat Boxes)
+// 8. WEIGHT TRACKER (7-Day Moving Avg & Projected Goal Date)
 // ---------------------------------------------------------------------------
 
 let activeRotatorWeight = 74.5;
@@ -717,27 +916,67 @@ let activeRotatorWeight = 74.5;
 function setupWeightRotator() {
   const valDisplay = document.getElementById('rotator-weight-val');
   const rangeSlider = document.getElementById('weight-rotator-slider');
+  const fastInput = document.getElementById('fast-weight-input');
 
   function updateRotatorDisplay(newVal) {
     activeRotatorWeight = Math.round(newVal * 10) / 10;
     valDisplay.textContent = activeRotatorWeight.toFixed(1);
     rangeSlider.value = activeRotatorWeight;
+    if (fastInput) fastInput.value = activeRotatorWeight.toFixed(1);
   }
 
-  // Get current weight to initialize rotator
   if (state.weightLogs.length > 0) {
     activeRotatorWeight = state.weightLogs[state.weightLogs.length - 1].weight;
   }
   updateRotatorDisplay(activeRotatorWeight);
 
-  rangeSlider.addEventListener('input', (e) => {
-    updateRotatorDisplay(parseFloat(e.target.value));
-  });
+  rangeSlider.addEventListener('input', (e) => updateRotatorDisplay(parseFloat(e.target.value)));
+  if (fastInput) {
+    fastInput.addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      if (!isNaN(val)) updateRotatorDisplay(val);
+    });
+  }
 
   document.getElementById('rot-minus-1').addEventListener('click', () => updateRotatorDisplay(activeRotatorWeight - 1.0));
   document.getElementById('rot-minus-01').addEventListener('click', () => updateRotatorDisplay(activeRotatorWeight - 0.1));
   document.getElementById('rot-plus-01').addEventListener('click', () => updateRotatorDisplay(activeRotatorWeight + 0.1));
   document.getElementById('rot-plus-1').addEventListener('click', () => updateRotatorDisplay(activeRotatorWeight + 1.0));
+}
+
+function calculate7DayMovingAverage(logs) {
+  return logs.map((log, idx) => {
+    const start = Math.max(0, idx - 6);
+    const slice = logs.slice(start, idx + 1);
+    const avg = slice.reduce((sum, item) => sum + item.weight, 0) / slice.length;
+    return Math.round(avg * 10) / 10;
+  });
+}
+
+function calculateProjectedGoalDate(logs, goal) {
+  if (!logs || logs.length < 2 || !goal) return 'Est. N/A';
+
+  const firstLog = logs[0];
+  const latestLog = logs[logs.length - 1];
+
+  const dFirst = new Date(firstLog.date);
+  const dLatest = new Date(latestLog.date);
+  const daysDiff = Math.max(1, Math.round((dLatest - dFirst) / (1000 * 60 * 60 * 24)));
+
+  const weightDiff = latestLog.weight - firstLog.weight;
+  const ratePerDay = weightDiff / daysDiff;
+
+  if ((goal < latestLog.weight && ratePerDay >= 0) || (goal > latestLog.weight && ratePerDay <= 0)) {
+    return 'Maintain Rate';
+  }
+
+  const remainingKg = Math.abs(latestLog.weight - goal);
+  const estimatedDays = Math.round(remainingKg / Math.abs(ratePerDay));
+
+  const targetDate = new Date(dLatest);
+  targetDate.setDate(targetDate.getDate() + estimatedDays);
+
+  return targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function renderWeightView() {
@@ -749,22 +988,20 @@ function renderWeightView() {
   const statChange = document.getElementById('stat-net-change');
   const progressLabel = document.getElementById('progress-percentage-label');
   const progressBar = document.getElementById('progress-bar-fill');
+  const movingAvgBadge = document.getElementById('moving-avg-val');
+  const projectedGoalBadge = document.getElementById('projected-goal-date');
   const logsList = document.getElementById('logs-list');
 
-  // UPDATE ALL 3 STAT BOXES
   statGoal.textContent = goal ? `${goal} kg` : '--';
 
   if (logs.length === 0) {
     statCurrent.textContent = '--';
     statChange.textContent = '--';
+    movingAvgBadge.textContent = '-- kg';
+    projectedGoalBadge.textContent = '--';
     progressLabel.textContent = '0%';
     progressBar.style.width = '0%';
-    logsList.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-state-icon">⚖️</div>
-        <p>No weight logs yet. Tap <strong>Log Weight Rotator</strong> to record your weight in kg!</p>
-      </div>
-    `;
+    logsList.innerHTML = `<div class="empty-state">No weight logs yet.</div>`;
     renderWeightChart([]);
     return;
   }
@@ -773,16 +1010,23 @@ function renderWeightView() {
   const firstLog = logs[0];
   const currentWeight = latestLog.weight;
 
-  // Box 1: Current Weight
   statCurrent.textContent = `${currentWeight} kg`;
 
-  // Box 3: Net Change from Initial Entry
   const diff = currentWeight - firstLog.weight;
   const diffFormatted = (diff >= 0 ? '+' : '') + diff.toFixed(1) + ' kg';
   statChange.textContent = diffFormatted;
   statChange.className = `stat-card-value ${diff <= 0 ? 'emerald' : 'amber'}`;
 
-  // Progress Bar
+  // 7-Day Moving Average
+  const movingAvgs = calculate7DayMovingAverage(logs);
+  const latestAvg = movingAvgs[movingAvgs.length - 1];
+  movingAvgBadge.textContent = `${latestAvg} kg`;
+
+  // Projected Goal Completion Date
+  const projectedDate = calculateProjectedGoalDate(logs, goal);
+  projectedGoalBadge.textContent = projectedDate;
+
+  // Goal Progress Percentage
   if (goal && firstLog.weight !== goal) {
     const totalDist = Math.abs(firstLog.weight - goal);
     const coveredDist = Math.abs(firstLog.weight - currentWeight);
@@ -799,7 +1043,7 @@ function renderWeightView() {
     progressBar.style.width = '100%';
   }
 
-  renderWeightChart(logs);
+  renderWeightChart(logs, movingAvgs);
 
   logsList.innerHTML = '';
   [...logs].reverse().forEach(log => {
@@ -814,21 +1058,15 @@ function renderWeightView() {
         <button class="delete-btn" data-log-id="${log.id}">Delete</button>
       </div>
     `;
-    item.querySelector('.delete-btn').addEventListener('click', () => {
-      deleteWeightLog(log.id);
-    });
+    item.querySelector('.delete-btn').addEventListener('click', () => deleteWeightLog(log.id));
     logsList.appendChild(item);
   });
 }
 
-function renderWeightChart(logs) {
+function renderWeightChart(logs, movingAvgs = []) {
   const container = document.getElementById('chart-container');
   if (!logs || logs.length < 2) {
-    container.innerHTML = `
-      <div style="height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.85rem;">
-        Log at least 2 entries to see your trend graph (kg)
-      </div>
-    `;
+    container.innerHTML = `<div style="height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.85rem;">Log at least 2 entries to view trend line & 7-day average</div>`;
     return;
   }
 
@@ -839,7 +1077,6 @@ function renderWeightChart(logs) {
   const weights = logs.map(l => l.weight);
   const minW = Math.min(...weights) - 1.5;
   const maxW = Math.max(...weights) + 1.5;
-
   const rangeY = maxW - minW || 1;
 
   const points = logs.map((log, i) => {
@@ -848,15 +1085,24 @@ function renderWeightChart(logs) {
     return { x, y, weight: log.weight, date: log.date };
   });
 
-  const pathD = points.reduce((acc, p, idx) => {
-    return `${acc} ${idx === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
-  }, '');
+  const pathD = points.reduce((acc, p, idx) => `${acc} ${idx === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`, '');
+
+  // Render Dashed 7-Day Moving Avg Curve
+  let avgPathD = '';
+  if (movingAvgs && movingAvgs.length === logs.length) {
+    const avgPoints = movingAvgs.map((avgVal, i) => {
+      const x = padding + (i / (logs.length - 1)) * (width - padding * 2);
+      const y = height - padding - ((avgVal - minW) / rangeY) * (height - padding * 2);
+      return { x, y };
+    });
+    avgPathD = avgPoints.reduce((acc, p, idx) => `${acc} ${idx === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`, '');
+  }
 
   const areaD = `${pathD} L ${points[points.length - 1].x.toFixed(1)} ${height - padding} L ${points[0].x.toFixed(1)} ${height - padding} Z`;
 
   const circlesHtml = points.map(p => `
     <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4.5" fill="#38bdf8" stroke="#0b0f19" stroke-width="2"/>
-    <text x="${p.x.toFixed(1)}" y="${(p.y - 10).toFixed(1)}" text-anchor="middle" fill="#94a3b8" font-size="10" font-weight="600">${p.weight}k</text>
+    <text x="${p.x.toFixed(1)}" y="${(p.y - 10).toFixed(1)}" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="600">${p.weight}k</text>
   `).join('');
 
   const firstDate = formatDateDisplay(logs[0].date).split(',')[0];
@@ -866,7 +1112,7 @@ function renderWeightChart(logs) {
     <svg viewBox="0 0 ${width} ${height}">
       <defs>
         <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.3"/>
+          <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.25"/>
           <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.0"/>
         </linearGradient>
       </defs>
@@ -877,6 +1123,7 @@ function renderWeightChart(logs) {
 
       <path d="${areaD}" fill="url(#chartFill)"/>
       <path d="${pathD}" fill="none" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      ${avgPathD ? `<path d="${avgPathD}" fill="none" stroke="#10b981" stroke-width="2" stroke-dasharray="4" stroke-linecap="round"/>` : ''}
 
       ${circlesHtml}
 
@@ -896,16 +1143,18 @@ function deleteWeightLog(logId) {
 }
 
 // ---------------------------------------------------------------------------
-// 8. REAL INTERACTIVE MONTHLY CALENDAR GRID & PAST DATE INSPECTOR
+// 9. REAL INTERACTIVE MONTHLY CALENDAR GRID & INDICATOR DOTS
 // ---------------------------------------------------------------------------
 
 function renderCalendarView() {
   const monthTitle = document.getElementById('cal-month-title');
+  const monthSummary = document.getElementById('cal-month-summary');
   const daysGrid = document.getElementById('calendar-days-grid');
   const selectedDateLabel = document.getElementById('history-selected-date-label');
   const daySummaryBadge = document.getElementById('history-day-summary-badge');
   const weightValBox = document.getElementById('history-weight-val');
   const foodListContainer = document.getElementById('history-food-list');
+  const reviewBoxContainer = document.getElementById('history-review-content');
   const habitsListContainer = document.getElementById('history-habits-list');
 
   const year = state.calendarYear;
@@ -931,20 +1180,21 @@ function renderCalendarView() {
   const totalHabitsCount = state.habits.length;
   const todayStr = getTodayStr();
 
+  let greenDaysCount = 0;
+
   for (let day = 1; day <= totalDaysInMonth; day++) {
     const monthStr = String(month + 1).padStart(2, '0');
     const dayStr = String(day).padStart(2, '0');
     const dateStr = `${year}-${monthStr}-${dayStr}`;
 
     let doneCount = 0;
-    state.habits.forEach(h => {
-      if (h.completions.includes(dateStr)) doneCount++;
-    });
+    state.habits.forEach(h => { if (h.completions.includes(dateStr)) doneCount++; });
 
     let colorClass = 'cal-none';
     if (totalHabitsCount > 0) {
       if (doneCount === totalHabitsCount) {
         colorClass = 'cal-all';
+        greenDaysCount++;
       } else if (doneCount > 0) {
         colorClass = 'cal-some';
       } else {
@@ -952,12 +1202,24 @@ function renderCalendarView() {
       }
     }
 
+    const hasFood = state.foodLogs.some(f => f.date === dateStr);
+    const hasReview = !!state.eveningReviews[dateStr];
+
     const isSelected = dateStr === state.selectedHistoryDate;
     const isToday = dateStr === todayStr;
 
     const cell = document.createElement('div');
     cell.className = `cal-day-cell ${colorClass} ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''}`;
-    cell.innerHTML = `<span class="cal-day-num">${day}</span>`;
+    
+    let indicatorsHtml = '';
+    if (hasFood || hasReview) {
+      indicatorsHtml = `<div class="cell-indicators">${hasFood ? '🍲' : ''}${hasReview ? '📝' : ''}</div>`;
+    }
+
+    cell.innerHTML = `
+      <span class="cal-day-num">${day}</span>
+      ${indicatorsHtml}
+    `;
 
     cell.addEventListener('click', () => {
       state.selectedHistoryDate = dateStr;
@@ -967,6 +1229,10 @@ function renderCalendarView() {
     daysGrid.appendChild(cell);
   }
 
+  const greenPct = Math.round((greenDaysCount / totalDaysInMonth) * 100);
+  monthSummary.textContent = `${greenDaysCount}/${totalDaysInMonth} Green Days this Month (${greenPct}%)`;
+
+  // Selected Date Inspection Details
   const selectedDate = state.selectedHistoryDate || todayStr;
   selectedDateLabel.textContent = formatDateDisplay(selectedDate);
 
@@ -998,7 +1264,21 @@ function renderCalendarView() {
     });
   }
 
-  // 3. Habits completed on selected date
+  // 3. Evening Stoic Review on selected date
+  const review = state.eveningReviews[selectedDate];
+  if (review) {
+    reviewBoxContainer.innerHTML = `
+      <div style="margin-bottom: 6px;"><strong>Virtues:</strong> ${review.well || 'N/A'}</div>
+      <div style="margin-bottom: 6px;"><strong>Lapses:</strong> ${review.short || 'N/A'}</div>
+      <div><strong>Tomorrow Goal:</strong> ${review.tomorrow || 'N/A'}</div>
+    `;
+    reviewBoxContainer.style.color = 'var(--text-primary)';
+  } else {
+    reviewBoxContainer.textContent = 'No review recorded for this date';
+    reviewBoxContainer.style.color = 'var(--text-muted)';
+  }
+
+  // 4. Habits checklist for selected date
   habitsListContainer.innerHTML = '';
   if (state.habits.length === 0) {
     habitsListContainer.innerHTML = `<div class="empty-state">No habits created yet.</div>`;
@@ -1023,10 +1303,7 @@ function renderCalendarView() {
       </span>
     `;
 
-    item.addEventListener('click', () => {
-      toggleHabitCompletion(habit.id, selectedDate);
-    });
-
+    item.addEventListener('click', () => toggleHabitCompletion(habit.id, selectedDate));
     habitsListContainer.appendChild(item);
   });
 
@@ -1059,7 +1336,7 @@ function setupCalendarControls() {
 }
 
 // ---------------------------------------------------------------------------
-// 9. STOIC REFLECTIONS CONTROLLER
+// 10. STOIC REFLECTIONS, EVENING REVIEW & SAVED QUOTES
 // ---------------------------------------------------------------------------
 
 let currentQuoteIndex = 0;
@@ -1068,9 +1345,7 @@ function getDailyQuoteIndex() {
   const now = new Date();
   const start = new Date(now.getFullYear(), 0, 0);
   const diff = now - start;
-  const oneDay = 1000 * 60 * 60 * 24;
-  const dayOfYear = Math.floor(diff / oneDay);
-  return dayOfYear % STOIC_QUOTES.length;
+  return Math.floor(diff / (1000 * 60 * 60 * 24)) % STOIC_QUOTES.length;
 }
 
 function renderStoicQuote(quoteObj, isDaily = true) {
@@ -1078,44 +1353,249 @@ function renderStoicQuote(quoteObj, isDaily = true) {
   const quoteAuthor = document.getElementById('quote-author');
   const quoteExplanation = document.getElementById('quote-explanation');
   const quoteBadgeText = document.getElementById('quote-badge-text');
+  const favBtn = document.getElementById('fav-quote-btn');
+  const reactionInput = document.getElementById('daily-reaction-input');
 
   quoteBadgeText.textContent = isDaily ? 'Daily Stoic Reflection' : 'Stoic Wisdom';
   quoteText.textContent = `"${quoteObj.quote}"`;
   quoteAuthor.textContent = `${quoteObj.author} (${quoteObj.source})`;
   quoteExplanation.textContent = quoteObj.explanation;
+
+  const isSaved = state.savedQuotes.includes(quoteObj.id);
+  favBtn.className = `fav-quote-btn ${isSaved ? 'saved' : ''}`;
+  favBtn.textContent = isSaved ? '❤️' : '🤍';
+
+  const todayStr = getTodayStr();
+  reactionInput.value = state.dailyReactions[todayStr] || '';
+}
+
+function renderSavedQuotes(filterAuthor = 'ALL') {
+  const savedContainer = document.getElementById('saved-quotes-list');
+  savedContainer.innerHTML = '';
+
+  const savedObjs = STOIC_QUOTES.filter(q => state.savedQuotes.includes(q.id));
+  const filtered = filterAuthor === 'ALL' ? savedObjs : savedObjs.filter(q => q.author === filterAuthor);
+
+  if (filtered.length === 0) {
+    savedContainer.innerHTML = `<div class="empty-state"><p>No saved quotes in this category yet. Bookmark quotes using the ❤️ button!</p></div>`;
+    return;
+  }
+
+  filtered.forEach(q => {
+    const card = document.createElement('div');
+    card.className = 'saved-quote-card';
+    card.innerHTML = `
+      <div style="font-size: 0.95rem; font-style: italic; color: var(--text-primary); margin-bottom: 8px;">"${q.quote}"</div>
+      <div style="font-size: 0.8rem; font-weight: 700; color: var(--accent-primary);">${q.author}</div>
+    `;
+    savedContainer.appendChild(card);
+  });
 }
 
 function initStoicSection() {
   currentQuoteIndex = getDailyQuoteIndex();
   renderStoicQuote(STOIC_QUOTES[currentQuoteIndex], true);
 
+  // Stoic Sub-Tab Navigation
+  document.getElementById('stoic-tab-quote').addEventListener('click', () => {
+    switchStoicPanel('stoic-panel-quote', 'stoic-tab-quote');
+  });
+  document.getElementById('stoic-tab-review').addEventListener('click', () => {
+    switchStoicPanel('stoic-panel-review', 'stoic-tab-review');
+    preloadEveningReview();
+  });
+  document.getElementById('stoic-tab-saved').addEventListener('click', () => {
+    switchStoicPanel('stoic-panel-saved', 'stoic-tab-saved');
+    renderSavedQuotes('ALL');
+  });
+
+  function switchStoicPanel(panelId, tabId) {
+    document.querySelectorAll('.stoic-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.stoic-tab-btn').forEach(t => t.classList.remove('active'));
+
+    document.getElementById(panelId).classList.add('active');
+    document.getElementById(tabId).classList.add('active');
+  }
+
+  // Favorite Quote Bookmark Toggle
+  document.getElementById('fav-quote-btn').addEventListener('click', () => {
+    triggerHapticFeedback();
+    const currObj = STOIC_QUOTES[currentQuoteIndex];
+    const idx = state.savedQuotes.indexOf(currObj.id);
+
+    if (idx > -1) {
+      state.savedQuotes.splice(idx, 1);
+    } else {
+      state.savedQuotes.push(currObj.id);
+    }
+
+    state.saveSavedQuotes();
+    renderStoicQuote(currObj, false);
+  });
+
+  // Save 1-Line Personal Reaction
+  document.getElementById('save-reaction-btn').addEventListener('click', () => {
+    triggerHapticFeedback();
+    const text = document.getElementById('daily-reaction-input').value.trim();
+    state.dailyReactions[getTodayStr()] = text;
+    state.saveDailyReactions();
+    alert('Personal thought saved for today!');
+  });
+
+  // Save Evening Review Form
+  document.getElementById('evening-review-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    triggerHapticFeedback();
+    const well = document.getElementById('review-well').value.trim();
+    const short = document.getElementById('review-short').value.trim();
+    const tomorrow = document.getElementById('review-tomorrow').value.trim();
+
+    state.eveningReviews[getTodayStr()] = { well, short, tomorrow, timestamp: new Date().toISOString() };
+    state.saveEveningReviews();
+    renderCalendarView();
+    alert('Evening Stoic Review saved successfully!');
+  });
+
   document.getElementById('shuffle-quote-btn').addEventListener('click', () => {
     let nextIdx = Math.floor(Math.random() * STOIC_QUOTES.length);
-    if (nextIdx === currentQuoteIndex) {
-      nextIdx = (currentQuoteIndex + 1) % STOIC_QUOTES.length;
-    }
+    if (nextIdx === currentQuoteIndex) nextIdx = (currentQuoteIndex + 1) % STOIC_QUOTES.length;
     currentQuoteIndex = nextIdx;
     
     const card = document.getElementById('quote-hero-card');
     card.style.opacity = '0.5';
-    card.style.transform = 'scale(0.98)';
     setTimeout(() => {
       renderStoicQuote(STOIC_QUOTES[currentQuoteIndex], false);
       card.style.opacity = '1';
-      card.style.transform = 'scale(1)';
     }, 150);
   });
 }
 
+function preloadEveningReview() {
+  const review = state.eveningReviews[getTodayStr()];
+  if (review) {
+    document.getElementById('review-well').value = review.well || '';
+    document.getElementById('review-short').value = review.short || '';
+    document.getElementById('review-tomorrow').value = review.tomorrow || '';
+  }
+}
+
 // ---------------------------------------------------------------------------
-// 10. AUTOMATED DAILY HEALTH CHECK
+// 11. EXECUTIVE INSIGHTS DASHBOARD & SETTINGS/DATA EXPORT
+// ---------------------------------------------------------------------------
+
+function renderInsightsDashboard() {
+  // 1. Active Streaks
+  let activeStreaks = 0;
+  let totalConsistencySum = 0;
+
+  state.habits.forEach(h => {
+    const sInfo = calculateStreak(h.completions);
+    if (sInfo.streak > 0) activeStreaks++;
+    totalConsistencySum += calculateConsistency30Day(h.completions);
+  });
+
+  document.getElementById('insight-active-streaks').textContent = activeStreaks;
+
+  // 2. 30-Day Discipline Consistency %
+  const avgConsistency = state.habits.length > 0 ? Math.round(totalConsistencySum / state.habits.length) : 0;
+  document.getElementById('insight-consistency-pct').textContent = `${avgConsistency}%`;
+
+  // 3. Weight Trend Direction & 7-Day Avg
+  if (state.weightLogs.length > 0) {
+    const latest = state.weightLogs[state.weightLogs.length - 1];
+    const first = state.weightLogs[0];
+    const diff = latest.weight - first.weight;
+    const arrow = diff <= 0 ? '↓' : '↑';
+    document.getElementById('insight-weight-arrow').textContent = `${arrow} ${Math.abs(diff).toFixed(1)} kg`;
+
+    const avgs = calculate7DayMovingAverage(state.weightLogs);
+    document.getElementById('insight-weight-7d').textContent = `7-Day Avg: ${avgs[avgs.length - 1]} kg`;
+  }
+
+  // 4. Green Days this Month
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const totalDays = new Date(year, month + 1, 0).getDate();
+  const totalHabits = state.habits.length;
+
+  let greenDays = 0;
+  for (let day = 1; day <= totalDays; day++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    let done = 0;
+    state.habits.forEach(h => { if (h.completions.includes(dateStr)) done++; });
+    if (totalHabits > 0 && done === totalHabits) greenDays++;
+  }
+
+  document.getElementById('insight-green-days').textContent = greenDays;
+  document.getElementById('insight-green-pct').textContent = `${Math.round((greenDays / totalDays) * 100)}% of month`;
+
+  // Habit Breakdown List
+  const breakdownContainer = document.getElementById('insights-habits-breakdown');
+  breakdownContainer.innerHTML = '';
+  state.habits.forEach(h => {
+    const sInfo = calculateStreak(h.completions);
+    const cPct = calculateConsistency30Day(h.completions);
+
+    const item = document.createElement('div');
+    item.style.padding = '8px 12px';
+    item.style.background = 'rgba(255,255,255,0.03)';
+    item.style.borderRadius = 'var(--radius-md)';
+    item.style.display = 'flex';
+    item.style.alignItems = 'center';
+    item.style.justifyContent = 'space-between';
+
+    item.innerHTML = `
+      <span>${h.icon || '🎯'} ${h.name}</span>
+      <span style="font-size: 0.8rem; font-weight: 700; color: var(--accent-emerald);">🔥 ${sInfo.streak}d | 🎯 ${cPct}%</span>
+    `;
+    breakdownContainer.appendChild(item);
+  });
+}
+
+function setupDataExport() {
+  document.getElementById('export-json-btn').addEventListener('click', () => {
+    const exportData = {
+      habits: state.habits,
+      weightLogs: state.weightLogs,
+      weightGoal: state.weightGoal,
+      foodLogs: state.foodLogs,
+      eveningReviews: state.eveningReviews,
+      dailyReactions: state.dailyReactions,
+      exportedAt: new Date().toISOString()
+    };
+    downloadFile(`wellness_backup_${getTodayStr()}.json`, JSON.stringify(exportData, null, 2), 'application/json');
+  });
+
+  document.getElementById('export-csv-btn').addEventListener('click', () => {
+    let csv = 'Type,Date,Details,Value\n';
+    state.weightLogs.forEach(w => csv += `Weight,${w.date},Weight Log,${w.weight} kg\n`);
+    state.foodLogs.forEach(f => csv += `Food,${f.date},"${f.mealType}: ${f.description}",\n`);
+    state.habits.forEach(h => h.completions.forEach(d => csv += `Habit,${d},"${h.name} Completed",\n`));
+    
+    downloadFile(`wellness_export_${getTodayStr()}.csv`, csv, 'text/csv');
+  });
+}
+
+function downloadFile(filename, text, type) {
+  const blob = new Blob([text], { type: type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ---------------------------------------------------------------------------
+// 12. AUTOMATED DAILY HEALTH CHECK & DIAGNOSTICS LOG
 // ---------------------------------------------------------------------------
 
 async function runDailyHealthCheck() {
   const todayStr = getTodayStr();
   const lastCheck = localStorage.getItem(STORAGE_KEYS.LAST_HEALTH_CHECK);
-
-  if (lastCheck === todayStr) return;
 
   let uptimeOk = false;
   let persistenceOk = false;
@@ -1125,7 +1605,6 @@ async function runDailyHealthCheck() {
     const res = await fetch(PUBLIC_LIVE_URL, { method: 'HEAD' });
     uptimeOk = res.ok || res.status === 200 || res.status === 304;
   } catch (e) {
-    uptimeOk = false;
     errors.push('Uptime Check failed: ' + e.message);
   }
 
@@ -1133,20 +1612,37 @@ async function runDailyHealthCheck() {
     const dbRes = await fetch(CLOUD_SYNC_ENDPOINT);
     persistenceOk = dbRes.ok;
   } catch (e) {
-    persistenceOk = false;
     errors.push('Persistence Check failed: ' + e.message);
   }
 
-  console.log(`[Daily Health Check Summary ${todayStr}]`);
-  console.log(`- Uptime Check: ${uptimeOk ? '✓ PASSED (200 OK)' : ' FAILED'}`);
-  console.log(`- Persistence Check: ${persistenceOk ? '✓ PASSED (DB Active)' : ' FAILED'}`);
-  console.log(`- Error Logging: ${errors.length === 0 ? '✓ ZERO ERRORS' : errors.join('; ')}`);
+  const statusText = `[${todayStr}] Uptime: ${uptimeOk ? 'OK' : 'FAIL'} | DB: ${persistenceOk ? 'OK' : 'FAIL'}`;
+  
+  // Store status run history
+  state.healthHistory.unshift(statusText);
+  state.healthHistory = state.healthHistory.slice(0, 7);
+  localStorage.setItem(STORAGE_KEYS.HEALTH_HISTORY, JSON.stringify(state.healthHistory));
+
+  // Update In-App Status Dot
+  const dot = document.getElementById('health-status-dot');
+  const textEl = document.getElementById('health-status-text');
+  const logBox = document.getElementById('health-log-box');
+
+  if (dot && textEl && logBox) {
+    if (uptimeOk && persistenceOk) {
+      dot.className = 'status-dot-indicator green';
+      textEl.textContent = `Last check (${todayStr}): Operational`;
+    } else {
+      dot.className = 'status-dot-indicator red';
+      textEl.textContent = `Last check (${todayStr}): Issues detected (${errors.join('; ')})`;
+    }
+    logBox.innerHTML = state.healthHistory.map(l => `<div>${l}</div>`).join('');
+  }
 
   localStorage.setItem(STORAGE_KEYS.LAST_HEALTH_CHECK, todayStr);
 }
 
 // ---------------------------------------------------------------------------
-// 11. MODAL & NAVIGATION CONTROLLERS
+// 13. MODAL & NAVIGATION CONTROLLERS
 // ---------------------------------------------------------------------------
 
 function setupNavigation() {
@@ -1167,6 +1663,7 @@ function setupNavigation() {
 
   navTabs.forEach(tab => {
     tab.addEventListener('click', () => {
+      triggerHapticFeedback();
       const targetTab = tab.getAttribute('data-tab');
 
       navTabs.forEach(t => t.classList.remove('active'));
@@ -1193,6 +1690,8 @@ function setupModals() {
   const logWeightModal = document.getElementById('log-weight-modal');
   const setGoalModal = document.getElementById('set-goal-modal');
   const logFoodModal = document.getElementById('log-food-modal');
+  const insightsModal = document.getElementById('insights-modal');
+  const settingsModal = document.getElementById('settings-modal');
 
   document.getElementById('header-action-btn').addEventListener('click', () => {
     if (state.activeTab === 'food') {
@@ -1201,6 +1700,15 @@ function setupModals() {
     } else {
       addHabitModal.classList.add('active');
     }
+  });
+
+  document.getElementById('insights-btn').addEventListener('click', () => {
+    renderInsightsDashboard();
+    insightsModal.classList.add('active');
+  });
+
+  document.getElementById('settings-btn').addEventListener('click', () => {
+    settingsModal.classList.add('active');
   });
 
   document.getElementById('log-weight-btn').addEventListener('click', () => {
@@ -1233,13 +1741,16 @@ function setupModals() {
 
   document.getElementById('add-habit-form').addEventListener('submit', (e) => {
     e.preventDefault();
+    triggerHapticFeedback();
     const nameInput = document.getElementById('habit-name-input');
+    const categoryInput = document.getElementById('habit-category-input');
     const name = nameInput.value.trim();
     if (name) {
       state.habits.push({
         id: 'h_' + Date.now(),
         name: name,
         icon: selectedEmoji,
+        category: categoryInput.value || 'General',
         createdAt: getTodayStr(),
         completions: []
       });
@@ -1251,9 +1762,9 @@ function setupModals() {
     }
   });
 
-  // SUBMIT WEIGHT FROM ROTATOR WHEEL & UPDATE ALL 3 STAT BOXES
   document.getElementById('log-weight-form').addEventListener('submit', (e) => {
     e.preventDefault();
+    triggerHapticFeedback();
     const weightVal = activeRotatorWeight;
     const dateVal = document.getElementById('weight-date-input').value;
 
@@ -1277,6 +1788,7 @@ function setupModals() {
 
   document.getElementById('set-goal-form').addEventListener('submit', (e) => {
     e.preventDefault();
+    triggerHapticFeedback();
     const goalVal = parseFloat(document.getElementById('goal-weight-input').value);
     if (goalVal) {
       state.weightGoal = goalVal;
@@ -1288,16 +1800,19 @@ function setupModals() {
 }
 
 // ---------------------------------------------------------------------------
-// 12. INITIALIZATION & SERVICE WORKER
+// 14. INITIALIZATION & SERVICE WORKER
 // ---------------------------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
   setupPasscodeLock();
   setupNavigation();
+  setupCategoryChips();
   setupFoodSection();
   setupWeightRotator();
   setupCalendarControls();
+  setupReminderBanner();
   setupModals();
+  setupDataExport();
   
   renderHabitsView();
   renderFoodView();

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Wellness - Habit, Food, Weight & Mind</title>
+  <title>Wellness - Personal Instrument</title>
 
   <!-- PWA & Web App Manifest -->
   <link rel="manifest" href="manifest.json">
@@ -16,7 +16,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
   <!-- SEO Meta -->
-  <meta name="description" content="Personal wellness app featuring manual Indian food logging, habit tracking, weight rotator wheel in kg, interactive calendar history, and Stoic reflections.">
+  <meta name="description" content="A personal wellness instrument featuring habits, Indian food journal, weight tracker, calendar, and Stoic evening reviews.">
 
   <!-- Stylesheet -->
   <link rel="stylesheet" href="styles.css">
@@ -63,10 +63,10 @@
     </div>
   </div>
 
-  <!-- STREAK MILESTONE CELEBRATION TOAST BANNER -->
+  <!-- ESCALATING STREAK MILESTONE TOAST -->
   <div id="milestone-toast" class="milestone-toast">
     <div class="milestone-content">
-      <span class="milestone-icon">🎉</span>
+      <span class="milestone-icon" id="milestone-icon">🎉</span>
       <div>
         <div class="milestone-title" id="milestone-title">Streak Milestone!</div>
         <div class="milestone-desc" id="milestone-desc">You hit a 7-day streak!</div>
@@ -74,7 +74,20 @@
     </div>
   </div>
 
-  <!-- App Sticky Header -->
+  <!-- IN-APP REMINDER FALLBACK BANNER -->
+  <div id="reminder-fallback-banner" class="reminder-banner" style="display: none;">
+    <div class="reminder-content">
+      <span class="reminder-icon">📞</span>
+      <div style="flex: 1;">
+        <div class="reminder-title">Reminder: Call Wife 📞</div>
+        <div class="reminder-desc">It's daytime active hours. Take a minute to connect!</div>
+      </div>
+      <button class="reminder-done-btn" id="reminder-done-btn">Mark Done</button>
+      <button class="reminder-close-btn" id="reminder-close-btn">&times;</button>
+    </div>
+  </div>
+
+  <!-- App Header -->
   <header class="app-header">
     <div class="brand">
       <div class="brand-icon" id="header-brand-icon">🌱</div>
@@ -84,11 +97,17 @@
       </div>
     </div>
     <div style="display: flex; align-items: center; gap: 8px;">
+      <button class="header-icon-btn" id="insights-btn" title="Insights Dashboard">
+        <span>📊</span>
+      </button>
+      <button class="header-icon-btn" id="settings-btn" title="Settings & Data Export">
+        <span>⚙️</span>
+      </button>
       <button class="header-action-btn" id="header-action-btn" style="display: flex;">
         <span>+</span>
         <span id="header-btn-text">Add Habit</span>
       </button>
-      <button class="header-action-btn lock-btn" id="header-lock-btn" title="Lock App">
+      <button class="header-icon-btn lock-btn" id="header-lock-btn" title="Lock App">
         <span>🔒</span>
       </button>
     </div>
@@ -107,21 +126,46 @@
         <div class="stat-pill" id="completion-stat-pill">0/0 Done</div>
       </div>
 
+      <!-- Category Filter Chips -->
+      <div class="category-chips" id="category-chips">
+        <button class="cat-chip active" data-cat="ALL">All</button>
+        <button class="cat-chip" data-cat="Family">👨‍👩‍👧 Family</button>
+        <button class="cat-chip" data-cat="Health">🏃 Health</button>
+        <button class="cat-chip" data-cat="Mind">🏛️ Mind</button>
+        <button class="cat-chip" data-cat="Work">💼 Work</button>
+      </div>
+
       <div class="habits-list" id="habits-list">
         <!-- Dynamic Habit Cards Rendered Here -->
       </div>
     </section>
 
-    <!-- VIEW 2: DAILY FOOD LOG (Manual Indian Meal Tracker) -->
+    <!-- VIEW 2: DAILY FOOD JOURNAL -->
     <section id="food-view" class="tab-view">
       <div class="section-banner food-banner">
         <div>
           <div class="banner-title">Daily Food Journal</div>
-          <div class="banner-subtitle" id="food-subtitle">Log what you eat today</div>
+          <div class="banner-subtitle" id="food-subtitle">Qualitative Indian home meal logging</div>
         </div>
         <button class="btn-primary" id="open-food-modal-btn" style="padding: 6px 14px; font-size: 0.85rem;">
           <span>+ Log Meal</span>
         </button>
+      </div>
+
+      <!-- Weekly Food Summary Strip -->
+      <div class="food-summary-strip" id="food-summary-strip">
+        <div class="summary-metric">
+          <div class="summary-metric-val" id="meals-logged-count">0</div>
+          <div class="summary-metric-lbl">Meals Logged</div>
+        </div>
+        <div class="summary-metric">
+          <div class="summary-metric-val" id="green-meal-days">0/7</div>
+          <div class="summary-metric-lbl">4-Slot Days</div>
+        </div>
+        <div class="summary-metric">
+          <div class="summary-metric-val" id="homemade-pct">0%</div>
+          <div class="summary-metric-lbl">Homemade</div>
+        </div>
       </div>
 
       <!-- Quick Meal Shortcut Chips -->
@@ -139,7 +183,7 @@
       </div>
     </section>
 
-    <!-- VIEW 3: WEIGHT TRACKER (Kilograms + Rotator Dial) -->
+    <!-- VIEW 3: WEIGHT TRACKER -->
     <section id="weight-view" class="tab-view">
       <!-- 3 Stat Boxes -->
       <div class="weight-stats-grid">
@@ -157,6 +201,18 @@
         </div>
       </div>
 
+      <!-- Moving Average & Goal Projection Banner -->
+      <div class="weight-metrics-bar">
+        <div class="metric-badge">
+          <span>📈 7-Day Avg:</span>
+          <strong id="moving-avg-val">-- kg</strong>
+        </div>
+        <div class="metric-badge">
+          <span>🎯 Est. Goal:</span>
+          <strong id="projected-goal-date">--</strong>
+        </div>
+      </div>
+
       <div class="progress-card">
         <div class="progress-header">
           <span>Goal Progress</span>
@@ -170,6 +226,10 @@
       <div class="chart-card">
         <div class="chart-header">
           <div class="chart-title">Weight Trend Over Time (kg)</div>
+          <div class="chart-legend">
+            <span class="legend-line solid"></span> Weight
+            <span class="legend-line dashed"></span> 7-Day Avg
+          </div>
         </div>
         <div class="chart-container" id="chart-container">
           <!-- Responsive SVG Line Chart Rendered Here -->
@@ -178,7 +238,7 @@
 
       <div class="weight-actions">
         <button class="btn-primary" id="log-weight-btn">
-          <span>⚖️ Log Weight Rotator</span>
+          <span>⚖️ Log Weight</span>
         </button>
         <button class="btn-secondary" id="set-goal-btn">
           <span>🎯 Set Goal</span>
@@ -193,18 +253,23 @@
 
     <!-- VIEW 4: INTERACTIVE MONTHLY CALENDAR HISTORY -->
     <section id="history-view" class="tab-view">
-      <!-- Calendar Month Header -->
+      <!-- Calendar Month Header & Summary -->
       <div class="calendar-header-card">
         <button class="btn-secondary cal-nav-btn" id="cal-prev-month-btn">←</button>
-        <div class="cal-month-title" id="cal-month-title">August 2026</div>
+        <div>
+          <div class="cal-month-title" id="cal-month-title">August 2026</div>
+          <div class="cal-month-summary" id="cal-month-summary">0/0 Green Days this Month</div>
+        </div>
         <button class="btn-secondary cal-nav-btn" id="cal-next-month-btn">→</button>
       </div>
 
-      <!-- Color Legend Pill -->
+      <!-- Color & Indicator Dot Legend -->
       <div class="calendar-legend">
         <div class="legend-item"><span class="legend-dot green"></span> Complete</div>
         <div class="legend-item"><span class="legend-dot yellow"></span> Partial</div>
         <div class="legend-item"><span class="legend-dot red"></span> None</div>
+        <div class="legend-item"><span class="indicator-icon">🍲</span> Food</div>
+        <div class="legend-item"><span class="indicator-icon">📝</span> Review</div>
       </div>
 
       <!-- Calendar Days Grid -->
@@ -246,6 +311,14 @@
           </div>
         </div>
 
+        <!-- Evening Stoic Review on Selected Day -->
+        <div class="history-review-box">
+          <div class="history-sub-title">📝 Evening Stoic Review</div>
+          <div id="history-review-content" style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 6px;">
+            No review recorded for this date
+          </div>
+        </div>
+
         <!-- Habits Checklist for Selected Day -->
         <div class="history-habits-box" style="margin-top: 14px;">
           <div class="history-sub-title">🌱 Habit Completions on this Date</div>
@@ -256,34 +329,98 @@
       </div>
     </section>
 
-    <!-- VIEW 5: STOIC REFLECTIONS -->
+    <!-- VIEW 5: STOIC REFLECTIONS & EVENING REVIEW -->
     <section id="stoic-view" class="tab-view">
       <div class="stoic-container">
-        <div class="quote-hero-card" id="quote-hero-card">
-          <div class="quote-badge">
-            <span>✨</span>
-            <span id="quote-badge-text">Daily Stoic Reflection</span>
+        <!-- Sub-Navigation Bar for Stoic Section -->
+        <div class="stoic-nav-bar">
+          <button class="stoic-tab-btn active" id="stoic-tab-quote">Daily Reflection</button>
+          <button class="stoic-tab-btn" id="stoic-tab-review">Evening Review</button>
+          <button class="stoic-tab-btn" id="stoic-tab-saved">Saved Quotes</button>
+        </div>
+
+        <!-- SUB-PANEL 1: DAILY QUOTE -->
+        <div id="stoic-panel-quote" class="stoic-panel active">
+          <div class="quote-hero-card" id="quote-hero-card">
+            <div class="quote-header-row">
+              <div class="quote-badge">
+                <span>✨</span>
+                <span id="quote-badge-text">Daily Stoic Reflection</span>
+              </div>
+              <button class="fav-quote-btn" id="fav-quote-btn" title="Bookmark Quote">🤍</button>
+            </div>
+
+            <blockquote class="quote-body" id="quote-text">
+              "You have power over your mind - not outside events. Realize this, and you will find strength."
+            </blockquote>
+
+            <div class="quote-author" id="quote-author">
+              Marcus Aurelius
+            </div>
+
+            <div class="explanation-box">
+              <div class="explanation-title">💡 Practical Takeaway</div>
+              <p class="explanation-text" id="quote-explanation">
+                Focus entirely on how you react to external challenges rather than stressing over things outside your direct control.
+              </p>
+            </div>
+
+            <!-- Freeform Personal Reaction Input -->
+            <div class="personal-reaction-box">
+              <label class="form-label" style="margin-top: 12px;">Personal Reaction / One-Line Thought</label>
+              <input type="text" id="daily-reaction-input" class="form-input" placeholder="e.g. Remember to stay calm during meetings today...">
+              <button class="btn-secondary" id="save-reaction-btn" style="margin-top: 8px; width: 100%; padding: 8px;">Save Thought</button>
+            </div>
           </div>
 
-          <blockquote class="quote-body" id="quote-text">
-            "You have power over your mind - not outside events. Realize this, and you will find strength."
-          </blockquote>
+          <button class="shuffle-quote-btn" id="shuffle-quote-btn" style="margin-top: 16px;">
+            <span>🎲 Get Random Reflection</span>
+          </button>
+        </div>
 
-          <div class="quote-author" id="quote-author">
-            Marcus Aurelius
+        <!-- SUB-PANEL 2: EVENING STOIC REVIEW -->
+        <div id="stoic-panel-review" class="stoic-panel">
+          <div class="section-banner">
+            <div>
+              <div class="banner-title">Evening Stoic Review</div>
+              <div class="banner-subtitle">Review your day before sleep (Seneca's Practice)</div>
+            </div>
           </div>
 
-          <div class="explanation-box">
-            <div class="explanation-title">💡 Practical Takeaway</div>
-            <p class="explanation-text" id="quote-explanation">
-              Focus entirely on how you react to external challenges rather than stressing over things outside your direct control.
-            </p>
+          <form id="evening-review-form" class="review-form-card">
+            <div class="form-group">
+              <label class="form-label">1. Where did I act well today? (Virtues & Victories)</label>
+              <textarea id="review-well" class="form-input" rows="2" placeholder="e.g. Maintained patience during stressful tasks..."></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">2. Where did I fall short? (Lapses & Temptations)</label>
+              <textarea id="review-short" class="form-input" rows="2" placeholder="e.g. Scrolled mindlessly on phone for 30 mins..."></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">3. What will I do differently tomorrow?</label>
+              <textarea id="review-tomorrow" class="form-input" rows="2" placeholder="e.g. Put phone away 1 hour before bed..."></textarea>
+            </div>
+
+            <button type="submit" class="btn-primary" style="width: 100%;">Save Evening Review</button>
+          </form>
+        </div>
+
+        <!-- SUB-PANEL 3: SAVED / FAVORITE QUOTES -->
+        <div id="stoic-panel-saved" class="stoic-panel">
+          <div class="category-chips">
+            <button class="cat-chip active" data-phil="ALL">All Philosophers</button>
+            <button class="cat-chip" data-phil="Marcus Aurelius">Marcus Aurelius</button>
+            <button class="cat-chip" data-phil="Seneca">Seneca</button>
+            <button class="cat-chip" data-phil="Epictetus">Epictetus</button>
+          </div>
+
+          <div class="saved-quotes-list" id="saved-quotes-list">
+            <!-- Dynamic Saved Quotes Rendered Here -->
           </div>
         </div>
 
-        <button class="shuffle-quote-btn" id="shuffle-quote-btn">
-          <span>🎲 Get Random Reflection</span>
-        </button>
       </div>
     </section>
 
@@ -313,7 +450,7 @@
     </button>
   </nav>
 
-  <!-- MODAL 1: ADD HABIT -->
+  <!-- MODAL 1: ADD HABIT (With Category Selector) -->
   <div class="modal-overlay" id="add-habit-modal">
     <div class="modal-card">
       <div class="modal-header">
@@ -324,6 +461,16 @@
         <div class="form-group">
           <label class="form-label">Habit Name</label>
           <input type="text" id="habit-name-input" class="form-input" placeholder="e.g. Call Wife, Morning Walk" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select id="habit-category-input" class="form-input">
+            <option value="Family">👨‍👩‍👧 Family</option>
+            <option value="Health">🏃 Health</option>
+            <option value="Mind">🏛️ Mind</option>
+            <option value="Work">💼 Work</option>
+          </select>
         </div>
 
         <div class="form-group">
@@ -349,7 +496,7 @@
     </div>
   </div>
 
-  <!-- MODAL 2: LOG FOOD (Manual Indian Meal Journal) -->
+  <!-- MODAL 2: LOG FOOD (With Qualitative Tags & Autocomplete) -->
   <div class="modal-overlay" id="log-food-modal">
     <div class="modal-card">
       <div class="modal-header">
@@ -368,8 +515,32 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">What did you eat? (Indian dishes, items & portions)</label>
-          <textarea id="food-desc-input" class="form-input" rows="3" placeholder="e.g. 2 Chapati, Dal Tadka, Bhindi Sabzi, Curd, Salad" required></textarea>
+          <label class="form-label">What did you eat? (Indian dishes & items)</label>
+          <textarea id="food-desc-input" class="form-input" rows="2" placeholder="e.g. 2 Chapati, Dal Tadka, Bhindi Sabzi, Curd" required></textarea>
+        </div>
+
+        <!-- Frequent Dishes Autocomplete Chips -->
+        <div class="form-group">
+          <label class="form-label">Frequent Dishes (Tap to add)</label>
+          <div class="frequent-chips" id="frequent-dishes-chips">
+            <span class="freq-chip" data-text="2 Roti, Dal Tadka, Sabzi, Salad">2 Roti + Dal + Sabzi</span>
+            <span class="freq-chip" data-text="Masala Tea & 2 Biscuits">Masala Tea & Biscuits</span>
+            <span class="freq-chip" data-text="Paneer Bhurji & 2 Roti">Paneer Bhurji & Roti</span>
+            <span class="freq-chip" data-text="Poha & Filter Coffee">Poha & Coffee</span>
+          </div>
+        </div>
+
+        <!-- Qualitative Tags -->
+        <div class="form-group">
+          <label class="form-label">Qualitative Tags</label>
+          <div class="tag-chips-grid" id="food-tag-chips">
+            <span class="tag-chip" data-tag="High Protein">💪 High Protein</span>
+            <span class="tag-chip" data-tag="Light">🍃 Light</span>
+            <span class="tag-chip" data-tag="Heavy">🍲 Heavy</span>
+            <span class="tag-chip" data-tag="Fried">🍟 Fried</span>
+            <span class="tag-chip" data-tag="Homemade" selected>🏡 Homemade</span>
+            <span class="tag-chip" data-tag="Vegetarian">🥗 Veg</span>
+          </div>
         </div>
 
         <div class="form-group">
@@ -382,7 +553,7 @@
     </div>
   </div>
 
-  <!-- MODAL 3: LOG WEIGHT WITH ROTATOR WHEEL & DIAL -->
+  <!-- MODAL 3: LOG WEIGHT WITH ROTATOR & FAST NUMERIC INPUT -->
   <div class="modal-overlay" id="log-weight-modal">
     <div class="modal-card">
       <div class="modal-header">
@@ -414,12 +585,18 @@
           </div>
         </div>
 
-        <div class="form-group" style="margin-top: 16px;">
+        <!-- Fast Direct Numeric Entry Alternative -->
+        <div class="form-group">
+          <label class="form-label">Or Type Weight Directly (kg)</label>
+          <input type="number" step="0.1" id="fast-weight-input" class="form-input" placeholder="e.g. 74.5">
+        </div>
+
+        <div class="form-group">
           <label class="form-label">Date</label>
           <input type="date" id="weight-date-input" class="form-input" required>
         </div>
 
-        <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Save & Update All 3 Boxes</button>
+        <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Save Weight Entry</button>
       </form>
     </div>
   </div>
@@ -438,6 +615,106 @@
         </div>
         <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Set Target Goal</button>
       </form>
+    </div>
+  </div>
+
+  <!-- MODAL 5: INSIGHTS DASHBOARD (Read-Only Summary Screen) -->
+  <div class="modal-overlay" id="insights-modal">
+    <div class="modal-card" style="max-height: 85vh; overflow-y: auto;">
+      <div class="modal-header">
+        <h3 class="modal-title">📊 Executive Insights Dashboard</h3>
+        <button class="modal-close-btn" class="close-modal-btn">&times;</button>
+      </div>
+      
+      <div class="insights-grid">
+        <div class="insight-card">
+          <div class="insight-title">Active Streaks</div>
+          <div class="insight-value" id="insight-active-streaks">0</div>
+          <div class="insight-sub">Habits with >0 days</div>
+        </div>
+
+        <div class="insight-card">
+          <div class="insight-title">30-Day Discipline</div>
+          <div class="insight-value emerald" id="insight-consistency-pct">0%</div>
+          <div class="insight-sub">Overall completion rate</div>
+        </div>
+
+        <div class="insight-card">
+          <div class="insight-title">Weight Trend</div>
+          <div class="insight-value" id="insight-weight-arrow">→ 0.0 kg</div>
+          <div class="insight-sub" id="insight-weight-7d">7-Day Avg: --</div>
+        </div>
+
+        <div class="insight-card">
+          <div class="insight-title">Green Days This Month</div>
+          <div class="insight-value amber" id="insight-green-days">0</div>
+          <div class="insight-sub" id="insight-green-pct">0% of month</div>
+        </div>
+      </div>
+
+      <div class="insights-section-title">Habit Consistency Breakdown</div>
+      <div id="insights-habits-breakdown" class="insights-breakdown-list">
+        <!-- Dynamic Breakdown Rendered Here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 6: SETTINGS, DIAGNOSTICS & DATA EXPORT -->
+  <div class="modal-overlay" id="settings-modal">
+    <div class="modal-card" style="max-height: 85vh; overflow-y: auto;">
+      <div class="modal-header">
+        <h3 class="modal-title">⚙️ App Settings & Data Backup</h3>
+        <button class="modal-close-btn" class="close-modal-btn">&times;</button>
+      </div>
+
+      <!-- Health Check Status Indicator -->
+      <div class="settings-card">
+        <div class="settings-title">
+          <span>🩺 Automated Health Check Status</span>
+          <span class="status-dot-indicator green" id="health-status-dot"></span>
+        </div>
+        <div class="settings-desc" id="health-status-text">Last check: All systems operational</div>
+        <div class="health-log-box" id="health-log-box">
+          <!-- Last 7 runs rendered here -->
+        </div>
+      </div>
+
+      <!-- Reminder Active Hours Settings -->
+      <div class="settings-card">
+        <div class="settings-title">📞 "Call Wife" Daytime Active Hours</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+          <div>
+            <label class="form-label">Start Time</label>
+            <input type="time" id="reminder-start-time" class="form-input" value="09:00">
+          </div>
+          <div>
+            <label class="form-label">End Time</label>
+            <input type="time" id="reminder-end-time" class="form-input" value="21:00">
+          </div>
+        </div>
+      </div>
+
+      <!-- Streak Grace Period Setting -->
+      <div class="settings-card">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <div class="settings-title">1-Day Streak Grace Period</div>
+            <div class="settings-desc">Allows 1 missed day before streak resets to zero</div>
+          </div>
+          <input type="checkbox" id="streak-grace-toggle" checked style="width: 20px; height: 20px;">
+        </div>
+      </div>
+
+      <!-- Data Export Options -->
+      <div class="settings-card">
+        <div class="settings-title">💾 Backup & Data Export</div>
+        <div class="settings-desc">Download your data to JSON or CSV format anytime</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px;">
+          <button class="btn-secondary" id="export-json-btn">JSON Backup</button>
+          <button class="btn-secondary" id="export-csv-btn">CSV Export</button>
+        </div>
+      </div>
+
     </div>
   </div>
 
