@@ -161,7 +161,7 @@ const STOIC_QUOTES = [
 ];
 
 // ---------------------------------------------------------------------------
-// 2. PASSCODE HASH SECURITY & CLOUD DATABASE ENGINE
+// 2. SECURE PASSCODE HASH SECURITY & CLOUD DATABASE ENGINE
 // ---------------------------------------------------------------------------
 // SHA-256 Hash of Passcode "7890" (Passcode is not stored in plaintext anywhere in code)
 const TARGET_PASSCODE_HASH = "6a95bbab63d587b596398c4bd7e91a132f24032d2007d107e5ea71967724b092";
@@ -180,7 +180,7 @@ const STORAGE_KEYS = {
   SESSION_UNLOCKED: 'wellness_session_unlocked'
 };
 
-const CLOUD_SYNC_ENDPOINT = 'https://api.jsonbin.io/v3/b/66b6038de41b4d34e41ea87f';
+const CLOUD_SYNC_ENDPOINT = 'https://crudcrud.com/api/df9fe4cc2a2b4f0ba158f3f54b74b576/wellness/6a7872454db36503e87d5f2b';
 
 function getTodayStr() {
   const d = new Date();
@@ -275,10 +275,7 @@ class AppState {
       };
       fetch(CLOUD_SYNC_ENDPOINT, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Bin-Meta': 'false'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       }).catch(() => {});
     } catch (e) {}
@@ -286,16 +283,13 @@ class AppState {
 
   async pullFromCloud() {
     try {
-      const res = await fetch(CLOUD_SYNC_ENDPOINT + '/latest', {
-        headers: { 'X-Bin-Meta': 'false' }
-      });
+      const res = await fetch(CLOUD_SYNC_ENDPOINT);
       if (res.ok) {
-        const data = await res.json();
-        const record = data.record || data;
-        if (record && record.habits) {
+        const record = await res.json();
+        if (record && record.habits && record.habits.length > 0) {
           this.habits = record.habits;
-          this.weightLogs = record.weightLogs;
-          this.weightGoal = record.weightGoal;
+          this.weightLogs = record.weightLogs || [];
+          this.weightGoal = record.weightGoal || DEFAULT_GOAL;
           
           localStorage.setItem(STORAGE_KEYS.HABITS, JSON.stringify(this.habits));
           localStorage.setItem(STORAGE_KEYS.WEIGHT_LOGS, JSON.stringify(this.weightLogs));
