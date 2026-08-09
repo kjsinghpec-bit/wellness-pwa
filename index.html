@@ -577,6 +577,28 @@
           </div>
         </div>
 
+        <!-- Just Start Activation Mode Toggle -->
+        <div class="form-group" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 10px; margin-top: 10px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">⚡ Enable "Just Start" Mode</div>
+              <div style="font-size: 0.72rem; color: var(--text-muted);">Set a 2-min minimum target for low-energy days</div>
+            </div>
+            <input type="checkbox" id="habit-activation-toggle" style="width: 18px; height: 18px;">
+          </div>
+
+          <div id="activation-mode-fields" style="display: none; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
+            <div>
+              <label class="form-label" style="font-size: 0.72rem;">Ideal Target</label>
+              <input type="text" id="habit-ideal-target" class="form-input" placeholder="e.g. 30 mins" value="30 mins">
+            </div>
+            <div>
+              <label class="form-label" style="font-size: 0.72rem;">Minimum Target</label>
+              <input type="text" id="habit-minimum-target" class="form-input" placeholder="e.g. 2 mins" value="2 mins">
+            </div>
+          </div>
+        </div>
+
         <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Save Habit</button>
       </form>
     </div>

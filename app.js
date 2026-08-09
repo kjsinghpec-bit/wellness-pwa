@@ -1,4 +1,4 @@
-/* Wellness PWA Main Application Script - v2.1.0 (P1-1 Today Screen) */
+/* Wellness PWA Main Application Script - v2.1.0 (P1-2 Just Start System) */
 
 // ---------------------------------------------------------------------------
 // 1. STOIC QUOTES DATASET
@@ -238,7 +238,8 @@ const DEFAULT_HABITS = [
     icon: '📞',
     category: 'Family',
     createdAt: getTodayStr(),
-    completions: [getTodayStr()]
+    completions: [getTodayStr()],
+    minimumCompletions: []
   },
   {
     id: 'h2',
@@ -246,7 +247,8 @@ const DEFAULT_HABITS = [
     icon: '💧',
     category: 'Health',
     createdAt: getTodayStr(),
-    completions: [getTodayStr()]
+    completions: [getTodayStr()],
+    minimumCompletions: []
   },
   {
     id: 'h3',
@@ -254,7 +256,11 @@ const DEFAULT_HABITS = [
     icon: '🏃',
     category: 'Health',
     createdAt: getTodayStr(),
-    completions: []
+    activationModeEnabled: true,
+    idealTarget: { type: 'duration', value: 30, unit: 'mins', label: '30 mins' },
+    minimumTarget: { type: 'duration', value: 2, unit: 'mins', label: '2 mins' },
+    completions: [],
+    minimumCompletions: []
   }
 ];
 
@@ -303,6 +309,9 @@ const DEFAULT_SETTINGS = {
 class AppState {
   constructor() {
     this.habits = this.load(STORAGE_KEYS.HABITS, DEFAULT_HABITS);
+    // Ensure minimumCompletions field exists
+    this.habits.forEach(h => { if (!h.minimumCompletions) h.minimumCompletions = []; });
+
     this.weightLogs = this.load(STORAGE_KEYS.WEIGHT_LOGS, generateDefaultWeightLogs());
     this.weightGoal = this.load(STORAGE_KEYS.WEIGHT_GOAL, 70.0);
     this.foodLogs = this.load(STORAGE_KEYS.FOOD_LOGS, DEFAULT_FOOD_LOGS);
@@ -378,6 +387,8 @@ class AppState {
         const record = await res.json();
         if (record && record.habits && record.habits.length > 0) {
           this.habits = record.habits;
+          this.habits.forEach(h => { if (!h.minimumCompletions) h.minimumCompletions = []; });
+
           this.weightLogs = record.weightLogs || [];
           this.weightGoal = record.weightGoal || 70.0;
           this.foodLogs = record.foodLogs || [];
@@ -558,7 +569,7 @@ function setupReminderBanner() {
 }
 
 // ---------------------------------------------------------------------------
-// 6. P1-1 UNIFIED TODAY VIEW CONTROLLER
+// 6. P1-1 UNIFIED TODAY VIEW CONTROLLER (WITH P1-2 JUST START SYSTEM)
 // ---------------------------------------------------------------------------
 
 function renderTodayView() {
@@ -669,7 +680,7 @@ function renderTodayView() {
     }
   }
 
-  // 4. "Still worth doing today" Habits List (Single Source of Truth)
+  // 4. "Still worth doing today" Habits List (With P1-2 Just Start Minimum Targets)
   const todayHabitsContainer = document.getElementById('today-habits-list');
   const remainingCountBadge = document.getElementById('today-priorities-count');
 
@@ -693,21 +704,52 @@ function renderTodayView() {
 
       sortedHabits.forEach(habit => {
         const isDone = habit.completions.includes(todayStr);
+        const isMinDone = habit.minimumCompletions && habit.minimumCompletions.includes(todayStr);
+        const isActivationEnabled = habit.activationModeEnabled && habit.minimumTarget;
+
+        let targetBadgeHtml = '';
+        if (isMinDone) {
+          const label = habit.minimumTarget.label || (habit.minimumTarget.value + ' ' + habit.minimumTarget.unit);
+          targetBadgeHtml = `<span style="font-size: 0.72rem; background: rgba(16,185,129,0.15); color: var(--accent-emerald); font-weight: 700; padding: 2px 8px; border-radius: var(--radius-full);">⚡ Minimum Kept (${label})</span>`;
+        } else if (isActivationEnabled) {
+          const idealLabel = habit.idealTarget ? (habit.idealTarget.label || habit.idealTarget.value + 'm') : 'Ideal';
+          const minLabel = habit.minimumTarget.label || (habit.minimumTarget.value + 'm');
+          targetBadgeHtml = `<span style="font-size: 0.72rem; color: var(--text-muted);">Target: ${idealLabel} | Min: ${minLabel}</span>`;
+        }
+
+        let justStartBtnHtml = '';
+        if (!isDone && isActivationEnabled) {
+          const minLabel = habit.minimumTarget.label || (habit.minimumTarget.value + ' ' + habit.minimumTarget.unit);
+          justStartBtnHtml = `<button class="today-just-start-btn" style="background: rgba(245, 158, 11, 0.12); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.25); padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 700; cursor: pointer; margin-right: 8px;">⚡ Just Start (${minLabel})</button>`;
+        }
+
         const item = document.createElement('div');
         item.className = `today-habit-item ${isDone ? 'completed' : ''}`;
         item.innerHTML = `
           <div class="today-habit-left">
             <span class="today-habit-icon">${habit.icon || '🎯'}</span>
-            <span class="today-habit-name">${habit.name}</span>
+            <div>
+              <div class="today-habit-name">${habit.name}</div>
+              ${targetBadgeHtml ? `<div style="margin-top: 2px;">${targetBadgeHtml}</div>` : ''}
+            </div>
           </div>
-          <button class="today-habit-check-btn" aria-label="Toggle completion">
-            ✓
-          </button>
+          <div style="display: flex; align-items: center;">
+            ${justStartBtnHtml}
+            <button class="today-habit-check-btn" aria-label="Toggle completion">
+              ✓
+            </button>
+          </div>
         `;
 
+        if (justStartBtnHtml) {
+          item.querySelector('.today-just-start-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleHabitCompletion(habit.id, todayStr, true);
+          });
+        }
+
         item.querySelector('.today-habit-check-btn').addEventListener('click', () => {
-          toggleHabitCompletion(habit.id, todayStr);
-          renderTodayView();
+          toggleHabitCompletion(habit.id, todayStr, false);
         });
 
         todayHabitsContainer.appendChild(item);
@@ -751,7 +793,7 @@ function renderTodayView() {
 }
 
 // ---------------------------------------------------------------------------
-// 7. HABIT TRACKER CONTROLLER
+// 7. HABIT TRACKER CONTROLLER (P1-2 JUST START SYSTEM)
 // ---------------------------------------------------------------------------
 
 function calculateStreak(completions, allowGrace = state.settings.streakGraceEnabled) {
@@ -858,6 +900,7 @@ function renderHabitsView() {
 
   filteredHabits.forEach((habit) => {
     const isDoneToday = habit.completions.includes(todayStr);
+    const isMinDoneToday = habit.minimumCompletions && habit.minimumCompletions.includes(todayStr);
     const streakInfo = calculateStreak(habit.completions);
     const consistencyPct = calculateConsistency30Day(habit.completions);
 
@@ -874,6 +917,18 @@ function renderHabitsView() {
       `;
     }).join('');
 
+    let justStartBtnHtml = '';
+    if (!isDoneToday && habit.activationModeEnabled && habit.minimumTarget) {
+      const minLabel = habit.minimumTarget.label || (habit.minimumTarget.value + ' ' + habit.minimumTarget.unit);
+      justStartBtnHtml = `<button class="habit-just-start-btn" style="background: rgba(245, 158, 11, 0.12); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.25); padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 700; cursor: pointer; margin-right: 8px;">⚡ Just Start (${minLabel})</button>`;
+    }
+
+    let minBadgeHtml = '';
+    if (isMinDoneToday) {
+      const minLabel = habit.minimumTarget ? (habit.minimumTarget.label || habit.minimumTarget.value + 'm') : '2m';
+      minBadgeHtml = `<span class="grace-badge" style="background: rgba(16,185,129,0.15); color: var(--accent-emerald);">⚡ Min Kept (${minLabel})</span>`;
+    }
+
     const card = document.createElement('div');
     card.className = `habit-card ${isDoneToday ? 'completed' : ''}`;
     card.innerHTML = `
@@ -889,14 +944,18 @@ function renderHabitsView() {
               <span class="consistency-badge" title="Rolling 30-Day Completion Rate">
                 🎯 ${consistencyPct}% 30-day
               </span>
+              ${minBadgeHtml}
               ${streakInfo.inGrace ? `<span class="grace-badge">🛡️ Grace Active</span>` : ''}
               <span class="category-tag">${habit.category || 'General'}</span>
             </div>
           </div>
         </div>
-        <button class="habit-toggle-btn" data-id="${habit.id}" aria-label="Toggle habit completion">
-          ✓
-        </button>
+        <div style="display: flex; align-items: center;">
+          ${justStartBtnHtml}
+          <button class="habit-toggle-btn" data-id="${habit.id}" aria-label="Toggle habit completion">
+            ✓
+          </button>
+        </div>
       </div>
       <div class="habit-weekly-row">
         ${weeklyRowHtml}
@@ -906,8 +965,15 @@ function renderHabitsView() {
       </div>
     `;
 
+    if (justStartBtnHtml) {
+      card.querySelector('.habit-just-start-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleHabitCompletion(habit.id, todayStr, true);
+      });
+    }
+
     card.querySelector('.habit-toggle-btn').addEventListener('click', () => {
-      toggleHabitCompletion(habit.id, todayStr);
+      toggleHabitCompletion(habit.id, todayStr, false);
     });
 
     card.querySelector('.delete-btn').addEventListener('click', () => {
@@ -921,19 +987,35 @@ function renderHabitsView() {
   habitsSubtitle.textContent = `${doneTodayCount} of ${state.habits.length} habits completed today`;
 }
 
-function toggleHabitCompletion(habitId, dateStr = getTodayStr()) {
+function toggleHabitCompletion(habitId, dateStr = getTodayStr(), isMinimum = false) {
   triggerHapticFeedback();
   const habit = state.habits.find(h => h.id === habitId);
   if (!habit) return;
 
-  const idx = habit.completions.indexOf(dateStr);
+  if (!habit.minimumCompletions) habit.minimumCompletions = [];
 
-  if (idx > -1) {
-    habit.completions.splice(idx, 1);
-  } else {
-    habit.completions.push(dateStr);
+  const idx = habit.completions.indexOf(dateStr);
+  const minIdx = habit.minimumCompletions.indexOf(dateStr);
+
+  if (isMinimum) {
+    if (idx === -1) {
+      habit.completions.push(dateStr);
+    }
+    if (minIdx === -1) {
+      habit.minimumCompletions.push(dateStr);
+    }
     const streakInfo = calculateStreak(habit.completions);
     checkStreakMilestone(habit.name, streakInfo.streak);
+  } else {
+    if (idx > -1) {
+      habit.completions.splice(idx, 1);
+      if (minIdx > -1) habit.minimumCompletions.splice(minIdx, 1);
+    } else {
+      habit.completions.push(dateStr);
+      if (minIdx > -1) habit.minimumCompletions.splice(minIdx, 1);
+      const streakInfo = calculateStreak(habit.completions);
+      checkStreakMilestone(habit.name, streakInfo.streak);
+    }
   }
 
   state.saveHabits();
@@ -1284,7 +1366,7 @@ function renderWeightChart(logs, movingAvgs = []) {
   }
 
   const width = 320;
-  const height = 180;
+  const height = 170;
   const padding = 25;
 
   const weights = logs.map(l => l.weight);
@@ -1511,7 +1593,7 @@ function renderCalendarView() {
       </span>
     `;
 
-    item.addEventListener('click', () => toggleHabitCompletion(habit.id, selectedDate));
+    item.addEventListener('click', () => toggleHabitCompletion(habit.id, selectedDate, false));
     habitsListContainer.appendChild(item);
   });
 
@@ -2122,6 +2204,15 @@ function setupModals() {
   const insightsModal = document.getElementById('insights-modal');
   const settingsModal = document.getElementById('settings-modal');
 
+  const activationToggle = document.getElementById('habit-activation-toggle');
+  const activationFields = document.getElementById('activation-mode-fields');
+
+  if (activationToggle && activationFields) {
+    activationToggle.addEventListener('change', (e) => {
+      activationFields.style.display = e.target.checked ? 'grid' : 'none';
+    });
+  }
+
   document.getElementById('header-action-btn').addEventListener('click', () => {
     if (state.activeTab === 'food') {
       document.getElementById('food-date-input').value = getTodayStr();
@@ -2174,6 +2265,11 @@ function setupModals() {
     const nameInput = document.getElementById('habit-name-input');
     const categoryInput = document.getElementById('habit-category-input');
     const name = nameInput.value.trim();
+
+    const isActivation = activationToggle ? activationToggle.checked : false;
+    const idealVal = document.getElementById('habit-ideal-target').value.trim() || '30 mins';
+    const minVal = document.getElementById('habit-minimum-target').value.trim() || '2 mins';
+
     if (name) {
       state.habits.push({
         id: 'h_' + Date.now(),
@@ -2181,7 +2277,11 @@ function setupModals() {
         icon: selectedEmoji,
         category: categoryInput.value || 'General',
         createdAt: getTodayStr(),
-        completions: []
+        activationModeEnabled: isActivation,
+        idealTarget: { type: 'duration', label: idealVal },
+        minimumTarget: { type: 'duration', label: minVal },
+        completions: [],
+        minimumCompletions: []
       });
       state.saveHabits();
       renderTodayView();
