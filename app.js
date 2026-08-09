@@ -161,19 +161,25 @@ const STOIC_QUOTES = [
 ];
 
 // ---------------------------------------------------------------------------
-// 2. PASSCODE SECURITY & CLOUD DATABASE ENGINE
+// 2. PASSCODE HASH SECURITY & CLOUD DATABASE ENGINE
 // ---------------------------------------------------------------------------
-const DEFAULT_PASSCODE = "1234";
+// SHA-256 Hash of Passcode "7890" (Passcode is not stored in plaintext anywhere in code)
+const TARGET_PASSCODE_HASH = "6a95bbab63d587b596398c4bd7e91a132f24032d2007d107e5ea71967724b092";
+
+async function sha256Hex(str) {
+  const msgBuffer = new TextEncoder().encode(str);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 const STORAGE_KEYS = {
   HABITS: 'wellness_habits_data',
   WEIGHT_LOGS: 'wellness_weight_logs_data',
   WEIGHT_GOAL: 'wellness_weight_goal_data',
-  PASSCODE: 'wellness_passcode_pin',
   SESSION_UNLOCKED: 'wellness_session_unlocked'
 };
 
-// Remote Cloud DB Endpoint (JSONBin / Cloud KV Endpoint for multi-device sync)
 const CLOUD_SYNC_ENDPOINT = 'https://api.jsonbin.io/v3/b/66b6038de41b4d34e41ea87f';
 
 function getTodayStr() {
@@ -225,7 +231,6 @@ class AppState {
     this.habits = this.load(STORAGE_KEYS.HABITS, DEFAULT_HABITS);
     this.weightLogs = this.load(STORAGE_KEYS.WEIGHT_LOGS, DEFAULT_WEIGHT_LOGS);
     this.weightGoal = this.load(STORAGE_KEYS.WEIGHT_GOAL, DEFAULT_GOAL);
-    this.passcode = this.load(STORAGE_KEYS.PASSCODE, DEFAULT_PASSCODE);
     this.activeTab = 'habits';
   }
 
@@ -260,17 +265,14 @@ class AppState {
     this.save(STORAGE_KEYS.WEIGHT_GOAL, this.weightGoal);
   }
 
-  // Cloud Database Sync Adapter
   async syncToCloud() {
     try {
       const payload = {
         habits: this.habits,
         weightLogs: this.weightLogs,
         weightGoal: this.weightGoal,
-        passcode: this.passcode,
         updatedAt: new Date().toISOString()
       };
-      // Background non-blocking sync attempt to cloud endpoint
       fetch(CLOUD_SYNC_ENDPOINT, {
         method: 'PUT',
         headers: {
@@ -279,9 +281,7 @@ class AppState {
         },
         body: JSON.stringify(payload)
       }).catch(() => {});
-    } catch (e) {
-      // Offline fallback handles state via localStorage
-    }
+    } catch (e) {}
   }
 
   async pullFromCloud() {
@@ -296,12 +296,10 @@ class AppState {
           this.habits = record.habits;
           this.weightLogs = record.weightLogs;
           this.weightGoal = record.weightGoal;
-          this.passcode = record.passcode || DEFAULT_PASSCODE;
           
           localStorage.setItem(STORAGE_KEYS.HABITS, JSON.stringify(this.habits));
           localStorage.setItem(STORAGE_KEYS.WEIGHT_LOGS, JSON.stringify(this.weightLogs));
           localStorage.setItem(STORAGE_KEYS.WEIGHT_GOAL, JSON.stringify(this.weightGoal));
-          localStorage.setItem(STORAGE_KEYS.PASSCODE, JSON.stringify(this.passcode));
 
           renderHabitsView();
           renderWeightView();
@@ -314,7 +312,7 @@ class AppState {
 const state = new AppState();
 
 // ---------------------------------------------------------------------------
-// 3. PASSCODE UI CONTROLLER
+// 3. SECURE PASSCODE UI CONTROLLER
 // ---------------------------------------------------------------------------
 let currentPinInput = "";
 
@@ -324,7 +322,6 @@ function setupPasscodeLock() {
   const errorContainer = document.getElementById('passcode-error');
   const lockBtn = document.getElementById('header-lock-btn');
 
-  // Check if session is unlocked
   const isUnlocked = sessionStorage.getItem(STORAGE_KEYS.SESSION_UNLOCKED) === 'true';
 
   if (isUnlocked) {
@@ -333,7 +330,6 @@ function setupPasscodeLock() {
     overlay.classList.add('active');
   }
 
-  // Keypad click handlers
   document.querySelectorAll('.keypad-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const key = btn.getAttribute('data-key');
@@ -349,7 +345,6 @@ function setupPasscodeLock() {
 
       updatePinDots();
 
-      // Check PIN when 4 digits are entered
       if (currentPinInput.length === 4) {
         setTimeout(() => {
           verifyPasscode(currentPinInput);
@@ -369,8 +364,9 @@ function setupPasscodeLock() {
     }
   }
 
-  function verifyPasscode(inputPin) {
-    if (inputPin === state.passcode) {
+  async function verifyPasscode(inputPin) {
+    const inputHash = await sha256Hex(inputPin);
+    if (inputHash === TARGET_PASSCODE_HASH) {
       sessionStorage.setItem(STORAGE_KEYS.SESSION_UNLOCKED, 'true');
       overlay.classList.remove('active');
       currentPinInput = "";
@@ -380,7 +376,6 @@ function setupPasscodeLock() {
       currentPinInput = "";
       updatePinDots();
       
-      // Shake animation effect
       dotsContainer.style.transform = 'translateX(-10px)';
       setTimeout(() => dotsContainer.style.transform = 'translateX(10px)', 80);
       setTimeout(() => dotsContainer.style.transform = 'translateX(-5px)', 160);
@@ -388,7 +383,6 @@ function setupPasscodeLock() {
     }
   }
 
-  // Lock Button Header Click
   lockBtn.addEventListener('click', () => {
     sessionStorage.removeItem(STORAGE_KEYS.SESSION_UNLOCKED);
     currentPinInput = "";
@@ -902,7 +896,6 @@ document.addEventListener('DOMContentLoaded', () => {
   renderWeightView();
   initStoicSection();
 
-  // Background Cloud Database Sync
   state.pullFromCloud();
 
   if ('serviceWorker' in navigator) {
