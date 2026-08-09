@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Wellness - Habit, Weight & Mind</title>
+
+  <!-- PWA & Web App Manifest -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b0f19">
+
+  <!-- Apple iOS Fullscreen & Home Screen Setup -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Wellness">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+  <!-- SEO Meta -->
+  <meta name="description" content="A personal wellness app featuring habit tracking, weight plotting, and Stoic reflections with cloud sync and passcode security.">
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- PASSCODE LOCK SCREEN OVERLAY -->
+  <div id="passcode-overlay" class="passcode-overlay active">
+    <div class="passcode-card">
+      <div class="passcode-header">
+        <div class="passcode-brand-icon">🌱</div>
+        <h2 class="passcode-title">Wellness Private</h2>
+        <p class="passcode-subtitle">Enter your 4-digit passcode</p>
+      </div>
+
+      <!-- PIN Display Dots -->
+      <div class="pin-dots-container" id="pin-dots">
+        <div class="pin-dot"></div>
+        <div class="pin-dot"></div>
+        <div class="pin-dot"></div>
+        <div class="pin-dot"></div>
+      </div>
+
+      <!-- Error Message -->
+      <div class="passcode-error" id="passcode-error"></div>
+
+      <!-- PIN Keypad Grid -->
+      <div class="keypad-grid">
+        <button class="keypad-btn" data-key="1">1</button>
+        <button class="keypad-btn" data-key="2">2</button>
+        <button class="keypad-btn" data-key="3">3</button>
+        <button class="keypad-btn" data-key="4">4</button>
+        <button class="keypad-btn" data-key="5">5</button>
+        <button class="keypad-btn" data-key="6">6</button>
+        <button class="keypad-btn" data-key="7">7</button>
+        <button class="keypad-btn" data-key="8">8</button>
+        <button class="keypad-btn" data-key="9">9</button>
+        <button class="keypad-btn action-key" data-key="C">C</button>
+        <button class="keypad-btn" data-key="0">0</button>
+        <button class="keypad-btn action-key" data-key="DEL">⌫</button>
+      </div>
+
+      <div class="passcode-hint">Default Passcode: <strong>1234</strong></div>
+    </div>
+  </div>
+
+  <!-- App Sticky Header -->
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-icon" id="header-brand-icon">🌱</div>
+      <div class="brand-text">
+        <h1 id="header-title">Habits</h1>
+        <p id="header-date">Today</p>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <button class="header-action-btn" id="header-action-btn" style="display: flex;">
+        <span>+</span>
+        <span>Add Habit</span>
+      </button>
+      <button class="header-action-btn lock-btn" id="header-lock-btn" title="Lock App">
+        <span>🔒</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="main-content">
+
+    <!-- VIEW 1: HABIT TRACKER -->
+    <section id="habits-view" class="tab-view active">
+      <div class="section-banner">
+        <div>
+          <div class="banner-title">Daily Habits</div>
+          <div class="banner-subtitle" id="habits-subtitle">Build consistent routines step by step</div>
+        </div>
+        <div class="stat-pill" id="completion-stat-pill">0/0 Done</div>
+      </div>
+
+      <div class="habits-list" id="habits-list">
+        <!-- Dynamic Habit Cards Rendered Here -->
+      </div>
+    </section>
+
+    <!-- VIEW 2: WEIGHT TRACKER -->
+    <section id="weight-view" class="tab-view">
+      <!-- Stats Overview Cards -->
+      <div class="weight-stats-grid">
+        <div class="stat-card">
+          <div class="stat-card-title">Current</div>
+          <div class="stat-card-value" id="stat-current-weight">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-title">Goal</div>
+          <div class="stat-card-value amber" id="stat-goal-weight">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-title">Net Change</div>
+          <div class="stat-card-value emerald" id="stat-net-change">--</div>
+        </div>
+      </div>
+
+      <!-- Goal Progress Card -->
+      <div class="progress-card">
+        <div class="progress-header">
+          <span>Goal Progress</span>
+          <span id="progress-percentage-label">0%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progress-bar-fill"></div>
+        </div>
+      </div>
+
+      <!-- Weight SVG Chart Card -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div class="chart-title">Weight Trend Over Time</div>
+        </div>
+        <div class="chart-container" id="chart-container">
+          <!-- Responsive SVG Line Chart Rendered Here -->
+        </div>
+      </div>
+
+      <!-- Weight Action Buttons -->
+      <div class="weight-actions">
+        <button class="btn-primary" id="log-weight-btn">
+          <span>⚖️ Log Weight</span>
+        </button>
+        <button class="btn-secondary" id="set-goal-btn">
+          <span>🎯 Set Goal</span>
+        </button>
+      </div>
+
+      <!-- Recent Weight Logs -->
+      <div class="logs-section-title">Full Log History</div>
+      <div class="logs-list" id="logs-list">
+        <!-- Dynamic Logs Rendered Here -->
+      </div>
+    </section>
+
+    <!-- VIEW 3: STOIC REFLECTIONS -->
+    <section id="stoic-view" class="tab-view">
+      <div class="stoic-container">
+        <!-- Hero Quote Card -->
+        <div class="quote-hero-card" id="quote-hero-card">
+          <div class="quote-badge">
+            <span>✨</span>
+            <span id="quote-badge-text">Daily Stoic Reflection</span>
+          </div>
+
+          <blockquote class="quote-body" id="quote-text">
+            "You have power over your mind - not outside events. Realize this, and you will find strength."
+          </blockquote>
+
+          <div class="quote-author" id="quote-author">
+            Marcus Aurelius
+          </div>
+
+          <div class="explanation-box">
+            <div class="explanation-title">💡 Practical Takeaway</div>
+            <p class="explanation-text" id="quote-explanation">
+              Focus entirely on how you react to external challenges rather than stressing over things outside your direct control.
+            </p>
+          </div>
+        </div>
+
+        <!-- New Quote Button -->
+        <button class="shuffle-quote-btn" id="shuffle-quote-btn">
+          <span>🎲 Get Random Reflection</span>
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Navigation Bar -->
+  <nav class="bottom-nav">
+    <button class="nav-tab active" data-tab="habits" id="nav-habits-tab">
+      <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <span>Habits</span>
+    </button>
+    <button class="nav-tab" data-tab="weight" id="nav-weight-tab">
+      <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <span>Weight</span>
+    </button>
+    <button class="nav-tab" data-tab="stoic" id="nav-stoic-tab">
+      <svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      <span>Reflections</span>
+    </button>
+  </nav>
+
+  <!-- MODAL 1: ADD HABIT -->
+  <div class="modal-overlay" id="add-habit-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Add New Habit</h3>
+        <button class="modal-close-btn" class="close-modal-btn">&times;</button>
+      </div>
+      <form id="add-habit-form">
+        <div class="form-group">
+          <label class="form-label">Habit Name</label>
+          <input type="text" id="habit-name-input" class="form-input" placeholder="e.g. Morning Meditation, Read 10 Pages" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Select Icon</label>
+          <div class="emoji-grid" id="emoji-grid">
+            <div class="emoji-option selected" data-emoji="🏃">🏃</div>
+            <div class="emoji-option" data-emoji="💧">💧</div>
+            <div class="emoji-option" data-emoji="🧘">🧘</div>
+            <div class="emoji-option" data-emoji="📚">📚</div>
+            <div class="emoji-option" data-emoji="💪">💪</div>
+            <div class="emoji-option" data-emoji="😴">😴</div>
+            <div class="emoji-option" data-emoji="🥗">🥗</div>
+            <div class="emoji-option" data-emoji="✍️">✍️</div>
+            <div class="emoji-option" data-emoji="🚴">🚴</div>
+            <div class="emoji-option" data-emoji="☀️">☀️</div>
+            <div class="emoji-option" data-emoji="🍏">🍏</div>
+            <div class="emoji-option" data-emoji="🎯">🎯</div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Save Habit</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 2: LOG WEIGHT -->
+  <div class="modal-overlay" id="log-weight-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Log Weight Entry</h3>
+        <button class="modal-close-btn" class="close-modal-btn">&times;</button>
+      </div>
+      <form id="log-weight-form">
+        <div class="form-group">
+          <label class="form-label">Weight (lbs/kg)</label>
+          <input type="number" step="0.1" id="weight-input" class="form-input" placeholder="e.g. 165.5" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date</label>
+          <input type="date" id="weight-date-input" class="form-input" required>
+        </div>
+        <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Save Entry to Cloud</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 3: SET GOAL WEIGHT -->
+  <div class="modal-overlay" id="set-goal-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Set Goal Weight</h3>
+        <button class="modal-close-btn" class="close-modal-btn">&times;</button>
+      </div>
+      <form id="set-goal-form">
+        <div class="form-group">
+          <label class="form-label">Target Weight</label>
+          <input type="number" step="0.1" id="goal-weight-input" class="form-input" placeholder="e.g. 155.0" required>
+        </div>
+        <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Set Target Goal</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Application Logic -->
+  <script src="app.js"></script>
+
+</body>
+</html>
