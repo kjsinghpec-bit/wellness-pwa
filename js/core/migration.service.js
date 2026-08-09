@@ -3,8 +3,8 @@
 (function (global) {
   'use strict';
 
-  const APP_SCHEMA_VERSION = 2;
-  const APP_VERSION = "2.2.0";
+  const APP_SCHEMA_VERSION = 3;
+  const APP_VERSION = "2.3.0";
 
   const SCHEMA_METADATA_KEY = 'wellness_schema_metadata';
   const RECOVERY_SNAPSHOT_KEY = 'wellness_migration_recovery_snapshot';
@@ -28,7 +28,8 @@
     'wellness_saved_quotes_data',
     'wellness_daily_reactions_data',
     'wellness_app_settings_data',
-    'wellness_health_history_logs'
+    'wellness_health_history_logs',
+    'wellness_tomorrow_actions_data'
   ];
 
   // Utility: SHA-256 Hex
@@ -97,6 +98,12 @@
       });
 
       snapshotData['wellness_habits_data'] = JSON.stringify(transformedHabits);
+      return snapshotData;
+    },
+    2: async (snapshotData) => {
+      if (!snapshotData['wellness_tomorrow_actions_data']) {
+        snapshotData['wellness_tomorrow_actions_data'] = JSON.stringify([]);
+      }
       return snapshotData;
     }
   };

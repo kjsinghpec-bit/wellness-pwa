@@ -163,8 +163,8 @@ const STOIC_QUOTES = [
 // ---------------------------------------------------------------------------
 // 2. CONSTANTS, SCHEMA VERSION & UTILITIES
 // ---------------------------------------------------------------------------
-const APP_SCHEMA_VERSION = 2; // Incremented for P1-2 completionRecords & activation fields
-const APP_VERSION = "2.2.0";
+const APP_SCHEMA_VERSION = 3; // Incremented for P1-3 Tomorrow Actions & Reflection Loop
+const APP_VERSION = "2.3.0";
 const TARGET_PASSCODE_HASH = "434f4d14c1eb231306b51aaa160c021b63670ac6ca67fb8e403f4500983dd1e4";
 
 function generateRecordId() {
@@ -206,7 +206,8 @@ const STORAGE_KEYS = {
   HEALTH_HISTORY: 'wellness_health_history_logs',
   SESSION_UNLOCKED: 'wellness_session_unlocked',
   LAST_HEALTH_CHECK: 'wellness_last_health_check_date',
-  ACTIVE_TIMER: 'wellness_active_timer_data'
+  ACTIVE_TIMER: 'wellness_active_timer_data',
+  TOMORROW_ACTIONS: 'wellness_tomorrow_actions_data'
 };
 
 const CLOUD_SYNC_ENDPOINT = 'https://crudcrud.com/api/df9fe4cc2a2b4f0ba158f3f54b74b576/wellness/6a7872454db36503e87d5f2b';
@@ -391,6 +392,7 @@ class AppState {
     this.dailyReactions = this.load(STORAGE_KEYS.DAILY_REACTIONS, {});
     this.settings = this.load(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
     this.healthHistory = this.load(STORAGE_KEYS.HEALTH_HISTORY, []);
+    this.tomorrowActions = this.load(STORAGE_KEYS.TOMORROW_ACTIONS, []);
 
     this.activeTab = 'today';
     this.activeCategoryFilter = 'ALL';
@@ -431,6 +433,62 @@ class AppState {
   saveSavedQuotes() { this.save(STORAGE_KEYS.SAVED_QUOTES, this.savedQuotes); }
   saveDailyReactions() { this.save(STORAGE_KEYS.DAILY_REACTIONS, this.dailyReactions); }
   saveSettings() { this.save(STORAGE_KEYS.SETTINGS, this.settings); }
+  saveTomorrowActions() { this.save(STORAGE_KEYS.TOMORROW_ACTIONS, this.tomorrowActions); }
+}
+
+function getNextDayStr(dateStr = getTodayStr()) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + 1);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
+function addTomorrowAction(actionText, category = 'General', sourceReviewDate = getTodayStr(), targetDate = null) {
+  if (!actionText || !actionText.trim()) return null;
+  const target = targetDate || getNextDayStr(sourceReviewDate);
+  const actionObj = {
+    id: generateRecordId(),
+    actionText: actionText.trim(),
+    sourceReviewDate: sourceReviewDate,
+    targetDate: target,
+    category: category || 'General',
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+    completedAt: null
+  };
+  state.tomorrowActions.push(actionObj);
+  state.saveTomorrowActions();
+  renderTodayView();
+  return actionObj;
+}
+
+function completeTomorrowAction(actionId) {
+  triggerHapticFeedback();
+  const action = state.tomorrowActions.find(a => a.id === actionId);
+  if (!action) return;
+  action.status = 'completed';
+  action.completedAt = new Date().toISOString();
+  state.saveTomorrowActions();
+  renderTodayView();
+}
+
+function editTomorrowAction(actionId, newText) {
+  triggerHapticFeedback();
+  const action = state.tomorrowActions.find(a => a.id === actionId);
+  if (!action || !newText || !newText.trim()) return;
+  action.actionText = newText.trim();
+  state.saveTomorrowActions();
+  renderTodayView();
+}
+
+function dismissTomorrowAction(actionId) {
+  triggerHapticFeedback();
+  const action = state.tomorrowActions.find(a => a.id === actionId);
+  if (!action) return;
+  action.status = 'dismissed';
+  state.saveTomorrowActions();
+  renderTodayView();
+}
 
   async syncToCloud() {
     try {
@@ -908,6 +966,60 @@ function renderTodayView() {
       };
     } else {
       promiseCard.style.display = 'none';
+    }
+  }
+
+  // 2b. Tomorrow Actions List (Yesterday's Decisions)
+  const tomorrowActionsContainer = document.getElementById('tomorrow-actions-container');
+  if (tomorrowActionsContainer) {
+    tomorrowActionsContainer.innerHTML = '';
+    const activeActions = state.tomorrowActions.filter(a => a.targetDate === todayStr && a.status === 'pending');
+
+    if (activeActions.length > 0) {
+      tomorrowActionsContainer.style.display = 'block';
+      activeActions.forEach(action => {
+        const card = document.createElement('div');
+        card.className = 'tomorrow-action-card';
+        card.style.cssText = 'background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 12px;';
+
+        const catIconMap = { Health: '🏃', Family: '👨‍👩‍👧', Mind: '🧠', Work: '💼', Character: '🏛️', General: '🎯' };
+        const catIcon = catIconMap[action.category] || '🎯';
+
+        card.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <div style="font-size: 0.75rem; font-weight: 700; color: var(--accent-amber); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
+              <span>💡</span>
+              <span>Yesterday's decision</span>
+              <span style="background: rgba(245, 158, 11, 0.2); padding: 2px 6px; border-radius: 4px; font-size: 0.7rem;">${action.category} ${catIcon}</span>
+            </div>
+            <button class="btn-dismiss-action" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.8rem;" title="Dismiss">&times;</button>
+          </div>
+          <div class="action-text-display" style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin-bottom: 10px;">"${action.actionText}"</div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-primary btn-complete-action" style="flex: 1; padding: 6px 12px; font-size: 0.78rem; background: linear-gradient(135deg, var(--accent-emerald), #059669); color: #fff; border: none; border-radius: var(--radius-full); font-weight: 700; cursor: pointer;">✓ Mark complete</button>
+            <button class="btn-secondary btn-edit-action" style="padding: 6px 12px; font-size: 0.78rem; border-radius: var(--radius-full); cursor: pointer;">Edit</button>
+          </div>
+        `;
+
+        card.querySelector('.btn-complete-action').onclick = () => {
+          completeTomorrowAction(action.id);
+        };
+
+        card.querySelector('.btn-dismiss-action').onclick = () => {
+          dismissTomorrowAction(action.id);
+        };
+
+        card.querySelector('.btn-edit-action').onclick = () => {
+          const newText = prompt('Edit your decision for today:', action.actionText);
+          if (newText && newText.trim()) {
+            editTomorrowAction(action.id, newText.trim());
+          }
+        };
+
+        tomorrowActionsContainer.appendChild(card);
+      });
+    } else {
+      tomorrowActionsContainer.style.display = 'none';
     }
   }
 
@@ -2076,12 +2188,38 @@ function initStoicSection() {
     const well = document.getElementById('review-well').value.trim();
     const short = document.getElementById('review-short').value.trim();
     const tomorrow = document.getElementById('review-tomorrow').value.trim();
+    const categorySelect = document.getElementById('review-tomorrow-category');
+    const category = categorySelect ? categorySelect.value : 'General';
 
     state.eveningReviews[getTodayStr()] = { well, short, tomorrow, timestamp: new Date().toISOString() };
     state.saveEveningReviews();
     renderTodayView();
     renderCalendarView();
-    alert('Evening Stoic Review saved successfully!');
+
+    const confirmBox = document.getElementById('tomorrow-action-confirm-box');
+    const previewText = document.getElementById('tomorrow-action-preview-text');
+    const confirmBtn = document.getElementById('confirm-carry-forward-btn');
+    const declineBtn = document.getElementById('decline-carry-forward-btn');
+
+    if (tomorrow && confirmBox && previewText && confirmBtn && declineBtn) {
+      previewText.textContent = `"${tomorrow}"`;
+      confirmBox.style.display = 'block';
+
+      confirmBtn.onclick = () => {
+        triggerHapticFeedback();
+        addTomorrowAction(tomorrow, category, getTodayStr(), getNextDayStr());
+        confirmBox.style.display = 'none';
+        showMilestoneToast('✨ Decision Carried Forward', `Your action has been carried forward to tomorrow's Today Screen!`, '💡');
+      };
+
+      declineBtn.onclick = () => {
+        triggerHapticFeedback();
+        confirmBox.style.display = 'none';
+        showMilestoneToast('📝 Evening Review Saved', `Your Stoic reflection for today has been recorded!`, '📝');
+      };
+    } else {
+      showMilestoneToast('📝 Evening Review Saved', `Your Stoic reflection for today has been recorded!`, '📝');
+    }
   });
 
   document.getElementById('shuffle-quote-btn').addEventListener('click', () => {
@@ -2181,7 +2319,7 @@ function renderInsightsDashboard() {
 // ---------------------------------------------------------------------------
 
 function calculatePayloadRecordCounts(payload) {
-  if (!payload || typeof payload !== 'object') return { habits: 0, completions: 0, weightLogs: 0, foodLogs: 0, eveningReviews: 0, morningIntentions: 0, dailyReactions: 0, savedQuotes: 0 };
+  if (!payload || typeof payload !== 'object') return { habits: 0, completions: 0, weightLogs: 0, foodLogs: 0, eveningReviews: 0, morningIntentions: 0, dailyReactions: 0, savedQuotes: 0, tomorrowActions: 0 };
   
   let completionsCount = 0;
   const habits = Array.isArray(payload.habits) ? payload.habits : [];
@@ -2195,7 +2333,8 @@ function calculatePayloadRecordCounts(payload) {
     eveningReviews: typeof payload.eveningReviews === 'object' && payload.eveningReviews !== null ? Object.keys(payload.eveningReviews).length : 0,
     morningIntentions: typeof payload.morningIntentions === 'object' && payload.morningIntentions !== null ? Object.keys(payload.morningIntentions).length : 0,
     dailyReactions: typeof payload.dailyReactions === 'object' && payload.dailyReactions !== null ? Object.keys(payload.dailyReactions).length : 0,
-    savedQuotes: Array.isArray(payload.savedQuotes) ? payload.savedQuotes.length : 0
+    savedQuotes: Array.isArray(payload.savedQuotes) ? payload.savedQuotes.length : 0,
+    tomorrowActions: Array.isArray(payload.tomorrowActions) ? payload.tomorrowActions.length : 0
   };
 }
 
@@ -2224,7 +2363,8 @@ async function generatePersonalDataBackup() {
     dailyReactions: state.dailyReactions,
     savedQuotes: state.savedQuotes,
     settings: state.settings,
-    healthHistory: state.healthHistory
+    healthHistory: state.healthHistory,
+    tomorrowActions: state.tomorrowActions
   };
 
   const recordCounts = calculatePayloadRecordCounts(payload);
@@ -2388,7 +2528,7 @@ async function inspectBackupDryRun(jsonText) {
     }
   }
 
-  const counts = validation.actualCounts || { habits: 0, completions: 0, weightLogs: 0, foodLogs: 0, eveningReviews: 0, morningIntentions: 0, dailyReactions: 0, savedQuotes: 0 };
+  const counts = validation.actualCounts || { habits: 0, completions: 0, weightLogs: 0, foodLogs: 0, eveningReviews: 0, morningIntentions: 0, dailyReactions: 0, savedQuotes: 0, tomorrowActions: 0 };
   const countsMismatchNotice = (!validation.legacyFormat && !validation.recordCountsValid) ? `<div style="grid-column: 1 / -1; color: var(--accent-amber); font-weight: 700; margin-top: 4px;">⚠️ Record Inventory Mismatch Detected</div>` : '';
 
   countsContainer.innerHTML = `
@@ -2399,6 +2539,7 @@ async function inspectBackupDryRun(jsonText) {
     <div><strong>Stoic Reviews:</strong> ${counts.eveningReviews}</div>
     <div><strong>Morning Intentions:</strong> ${counts.morningIntentions || 0}</div>
     <div><strong>Saved Quotes:</strong> ${counts.savedQuotes}</div>
+    <div><strong>Tomorrow Actions:</strong> ${counts.tomorrowActions || 0}</div>
     ${countsMismatchNotice}
   `;
 

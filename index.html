@@ -168,19 +168,22 @@
         <div class="today-date-subtitle" id="today-date-subtitle">Sunday, 9 August</div>
       </div>
 
-      <!-- 2. Yesterday's Promise Card (Compact - Only rendered if yesterday review.tomorrow has text) -->
-      <div class="yesterday-promise-card compact" id="yesterday-promise-card" style="display: none;">
+      <!-- 2. Compact Yesterday's Promise Card -->
+      <div class="promise-card" id="yesterday-promise-card" style="display: none;">
         <div class="promise-header">
-          <div>
-            <span class="promise-icon">📜</span>
-            <span class="promise-label">You told yourself yesterday</span>
+          <div class="promise-title">
+            <span>💡</span>
+            <span>Yesterday's promise</span>
           </div>
-          <button class="promise-action-btn" id="promise-remember-btn">✓ Remembered</button>
+          <button class="promise-remember-btn" id="promise-remember-btn">Remember</button>
         </div>
         <blockquote class="promise-text" id="yesterday-promise-text">
           "Protect the evening and don't carry office work into family time."
         </blockquote>
       </div>
+
+      <!-- 2b. Tomorrow Actions Container (Yesterday's Decisions) -->
+      <div id="tomorrow-actions-container" style="display: none; margin-bottom: 14px;"></div>
 
       <!-- 3. Morning Intention Card (Empty & Saved States) -->
       <div class="morning-intention-card" id="morning-intention-card">
@@ -525,7 +528,26 @@
 
             <div class="form-group">
               <label class="form-label">3. What will I do differently tomorrow?</label>
+              <div style="margin-bottom: 6px;">
+                <select id="review-tomorrow-category" class="form-input" style="padding: 6px 10px; font-size: 0.82rem; background: var(--bg-tertiary);">
+                  <option value="Health">Category: Health 🏃</option>
+                  <option value="Family">Category: Family 👨‍👩‍👧</option>
+                  <option value="Mind">Category: Mind 🧠</option>
+                  <option value="Work">Category: Work 💼</option>
+                  <option value="Character">Category: Character 🏛️</option>
+                  <option value="General" selected>Category: General 🎯</option>
+                </select>
+              </div>
               <textarea id="review-tomorrow" class="form-input" rows="2" placeholder="e.g. Put phone away 1 hour before bed..."></textarea>
+            </div>
+
+            <div id="tomorrow-action-confirm-box" style="display: none; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: var(--radius-md); padding: 12px; margin-bottom: 12px;">
+              <div style="font-size: 0.85rem; font-weight: 700; color: var(--accent-amber); margin-bottom: 4px;">Carry this forward to tomorrow?</div>
+              <div style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 10px;" id="tomorrow-action-preview-text">"Action preview"</div>
+              <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn-primary" id="confirm-carry-forward-btn" style="flex: 1; padding: 6px 12px; font-size: 0.8rem; background: linear-gradient(135deg, var(--accent-amber), #d97706); color: #000;">Yes, carry forward</button>
+                <button type="button" class="btn-secondary" id="decline-carry-forward-btn" style="flex: 1; padding: 6px 12px; font-size: 0.8rem;">Not now</button>
+              </div>
             </div>
 
             <button type="submit" class="btn-primary" style="width: 100%;">Save Evening Review</button>

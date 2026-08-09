@@ -156,12 +156,12 @@ console.log('\n--- 6. Schema Version & Migration Path (v1 -> v2) ---');
 const appJsContent = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
 const migrationContent = fs.readFileSync(path.join(__dirname, 'js/core/migration.service.js'), 'utf8');
 
-const appSchemaIs2 = appJsContent.includes('APP_SCHEMA_VERSION = 2;');
-const migrationSchemaIs2 = migrationContent.includes('APP_SCHEMA_VERSION = 2;');
+const appSchemaIs3 = appJsContent.includes('APP_SCHEMA_VERSION = 3;');
+const migrationSchemaIs3 = migrationContent.includes('APP_SCHEMA_VERSION = 3;');
 const migrationHasV1ToV2 = migrationContent.includes('1: async (snapshotData)');
 
-console.log('APP_SCHEMA_VERSION = 2 in app.js:', appSchemaIs2 ? '✓ PASSED' : 'FAILED');
-console.log('APP_SCHEMA_VERSION = 2 in migration.service.js:', migrationSchemaIs2 ? '✓ PASSED' : 'FAILED');
+console.log('APP_SCHEMA_VERSION = 3 in app.js:', appSchemaIs3 ? '✓ PASSED' : 'FAILED');
+console.log('APP_SCHEMA_VERSION = 3 in migration.service.js:', migrationSchemaIs3 ? '✓ PASSED' : 'FAILED');
 console.log('v1 -> v2 Migration Registered:', migrationHasV1ToV2 ? '✓ PASSED' : 'FAILED');
 
 // 7. Active Timer Backup Behavior Is Explicit (Correction 4)

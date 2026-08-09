@@ -78,25 +78,25 @@ console.log('Result:', userSnapshotBefore === userSnapshotAfter ? '✓ PASSED (U
   console.log('\n--- 4. Unsupported Future Schema Dry-Run ---');
   console.log('Result:', !dryFuture.dryRunPassed && dryFuture.errors.length > 0 ? '✓ PASSED (FUTURE SCHEMA REJECTED)' : 'FAILED');
 
-  // 5. Valid migration dry-run (Register dummy v2 -> v3)
-  MIGRATION_REGISTRY[2] = async (payload) => {
+  // 5. Valid migration dry-run (Register dummy active -> active + 1)
+  MIGRATION_REGISTRY[APP_SCHEMA_VERSION] = async (payload) => {
     return payload; // identity transformer
   };
-  const dryValid = await migrationSvc.runMigrationDryRun(3);
+  const dryValid = await migrationSvc.runMigrationDryRun(APP_SCHEMA_VERSION + 1);
   console.log('\n--- 5. Valid Migration Dry-Run Simulation ---');
   console.log('Result:', dryValid.dryRunPassed && dryValid.expectedChanges.length > 0 ? '✓ PASSED' : 'FAILED');
 
   // 6. Dry-run storage non-mutation
   const storeBeforeDry = JSON.stringify(mockStorage.store);
-  await migrationSvc.runMigrationDryRun(3);
+  await migrationSvc.runMigrationDryRun(APP_SCHEMA_VERSION + 1);
   const storeAfterDry = JSON.stringify(mockStorage.store);
   console.log('\n--- 6. Dry-Run Storage Non-Mutation Assertion ---');
   console.log('Result:', storeBeforeDry === storeAfterDry ? '✓ PASSED (ZERO MUTATIONS)' : 'FAILED');
 
-  // 7. Sequential migration registry behavior (v2 -> v3 -> v4)
-  MIGRATION_REGISTRY[3] = async (payload) => payload;
-  const drySeq = await migrationSvc.runMigrationDryRun(4);
-  console.log('\n--- 7. Sequential Migration Behavior (v2->v3->v4) ---');
+  // 7. Sequential migration registry behavior (active -> active + 1 -> active + 2)
+  MIGRATION_REGISTRY[APP_SCHEMA_VERSION + 1] = async (payload) => payload;
+  const drySeq = await migrationSvc.runMigrationDryRun(APP_SCHEMA_VERSION + 2);
+  console.log('\n--- 7. Sequential Migration Behavior (active->active+1->active+2) ---');
   console.log('Result:', drySeq.dryRunPassed && drySeq.expectedChanges.length === 2 ? '✓ PASSED' : 'FAILED');
 
   // 8. Interrupted migration recovery
