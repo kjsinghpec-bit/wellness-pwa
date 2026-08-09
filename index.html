@@ -450,7 +450,7 @@
     </button>
   </nav>
 
-  <!-- MODAL 1: ADD HABIT (With Category Selector) -->
+  <!-- MODAL 1: ADD HABIT -->
   <div class="modal-overlay" id="add-habit-modal">
     <div class="modal-card">
       <div class="modal-header">
@@ -496,7 +496,7 @@
     </div>
   </div>
 
-  <!-- MODAL 2: LOG FOOD (With Qualitative Tags & Autocomplete) -->
+  <!-- MODAL 2: LOG FOOD -->
   <div class="modal-overlay" id="log-food-modal">
     <div class="modal-card">
       <div class="modal-header">
@@ -618,7 +618,7 @@
     </div>
   </div>
 
-  <!-- MODAL 5: INSIGHTS DASHBOARD (Read-Only Summary Screen) -->
+  <!-- MODAL 5: INSIGHTS DASHBOARD -->
   <div class="modal-overlay" id="insights-modal">
     <div class="modal-card" style="max-height: 85vh; overflow-y: auto;">
       <div class="modal-header">
@@ -659,7 +659,7 @@
     </div>
   </div>
 
-  <!-- MODAL 6: SETTINGS, DIAGNOSTICS & DATA EXPORT -->
+  <!-- MODAL 6: SETTINGS, DIAGNOSTICS & DATA BACKUP -->
   <div class="modal-overlay" id="settings-modal">
     <div class="modal-card" style="max-height: 85vh; overflow-y: auto;">
       <div class="modal-header">
@@ -705,16 +705,51 @@
         </div>
       </div>
 
-      <!-- Data Export Options -->
+      <!-- Personal Data Backup & Dry-Run Inspector Options -->
       <div class="settings-card">
-        <div class="settings-title">💾 Backup & Data Export</div>
-        <div class="settings-desc">Download your data to JSON or CSV format anytime</div>
+        <div class="settings-title">💾 Personal Data Backup (P0A-1A)</div>
+        <div class="settings-desc">Export a non-destructive data package or dry-run inspect a backup file without modifying active data.</div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px;">
-          <button class="btn-secondary" id="export-json-btn">JSON Backup</button>
-          <button class="btn-secondary" id="export-csv-btn">CSV Export</button>
+          <button class="btn-primary" id="export-json-btn">Export Backup</button>
+          <label class="btn-secondary" style="cursor: pointer; text-align: center; display: inline-flex; align-items: center; justify-content: center;">
+            <span>Inspect Backup</span>
+            <input type="file" id="import-backup-file-input" accept=".json" style="display: none;">
+          </label>
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- MODAL 7: DRY-RUN BACKUP PREVIEW MODAL (P0A-1A - READ-ONLY INSPECTOR) -->
+  <div class="modal-overlay" id="dryrun-preview-modal">
+    <div class="modal-card" style="max-height: 85vh; overflow-y: auto;">
+      <div class="modal-header">
+        <h3 class="modal-title">🔍 Backup Inspection (Dry-Run Only)</h3>
+        <button class="modal-close-btn" class="close-modal-btn">&times;</button>
+      </div>
+      
+      <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid var(--border-highlight); padding: 12px; border-radius: var(--radius-md); font-size: 0.8rem; color: var(--accent-primary); margin-bottom: 16px;">
+        ℹ️ <strong>DRY-RUN MODE ACTIVE:</strong> No intentional mutation path exists in dry-run inspection, and automated tests verify that active storage remains unchanged.
+      </div>
+
+      <div class="settings-card">
+        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem;">
+          <div><strong>Export Timestamp:</strong> <span id="dryrun-timestamp">--</span></div>
+          <div><strong>App Version:</strong> <span id="dryrun-app-version">--</span></div>
+          <div><strong>Schema Version:</strong> <span id="dryrun-schema-version">--</span></div>
+          <div><strong>Timezone:</strong> <span id="dryrun-timezone">--</span></div>
+          <div><strong>Integrity Checksum:</strong> <span id="dryrun-checksum-status" style="font-weight: 700;">--</span></div>
+          <div><strong>Compatibility Status:</strong> <span id="dryrun-compat-status" style="font-weight: 700;">--</span></div>
+        </div>
+      </div>
+
+      <div class="logs-section-title">Record Counts Inventory</div>
+      <div class="settings-card" id="dryrun-counts-container" style="font-size: 0.85rem; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <!-- Dynamic Counts Rendered Here -->
+      </div>
+
+      <button class="btn-secondary close-modal-btn" style="width: 100%; margin-top: 12px;">Close Preview</button>
     </div>
   </div>
 

@@ -1,4 +1,4 @@
-/* Wellness PWA Main Application Script - v2 Refinement */
+/* Wellness PWA Main Application Script - v2.1.0 (P0A-1A Hardened Backup & Inspector) */
 
 // ---------------------------------------------------------------------------
 // 1. STOIC QUOTES DATASET
@@ -161,8 +161,10 @@ const STOIC_QUOTES = [
 ];
 
 // ---------------------------------------------------------------------------
-// 2. CONSTANTS & UTILITIES
+// 2. CONSTANTS, SCHEMA VERSION & UTILITIES (P0A-1A HARDENED)
 // ---------------------------------------------------------------------------
+const APP_SCHEMA_VERSION = 1;
+const APP_VERSION = "2.1.0";
 const TARGET_PASSCODE_HASH = "434f4d14c1eb231306b51aaa160c021b63670ac6ca67fb8e403f4500983dd1e4";
 
 async function sha256Hex(str) {
@@ -170,6 +172,19 @@ async function sha256Hex(str) {
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Canonical Key-Sorted Stringification for SHA-256 Integrity Checksum
+function toCanonicalJsonString(obj) {
+  if (obj === null || typeof obj !== 'object') {
+    return JSON.stringify(obj);
+  }
+  if (Array.isArray(obj)) {
+    return '[' + obj.map(toCanonicalJsonString).join(',') + ']';
+  }
+  const sortedKeys = Object.keys(obj).sort();
+  const parts = sortedKeys.map(k => JSON.stringify(k) + ':' + toCanonicalJsonString(obj[k]));
+  return '{' + parts.join(',') + '}';
 }
 
 const STORAGE_KEYS = {
@@ -201,7 +216,6 @@ function formatDateDisplay(dateStr) {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-// Visual Haptic Effect Helper
 function triggerHapticFeedback() {
   if ('vibrate' in navigator) {
     try { navigator.vibrate(15); } catch (e) {}
@@ -508,7 +522,6 @@ function checkDaytimeReminderAlert() {
     banner.style.display = 'none';
   }
 
-  // Web Notification API Request
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission();
   } else if ('Notification' in window && Notification.permission === 'granted' && isDaytimeActive && !isDoneToday) {
@@ -536,7 +549,7 @@ function setupReminderBanner() {
 }
 
 // ---------------------------------------------------------------------------
-// 6. HABIT TRACKER CONTROLLER (Grace Period & 30-Day Discipline Score)
+// 6. HABIT TRACKER CONTROLLER
 // ---------------------------------------------------------------------------
 
 function calculateStreak(completions, allowGrace = state.settings.streakGraceEnabled) {
@@ -748,7 +761,7 @@ function setupCategoryChips() {
 }
 
 // ---------------------------------------------------------------------------
-// 7. DAILY FOOD JOURNAL CONTROLLER (Tags, Autocomplete & Summary Strip)
+// 7. DAILY FOOD JOURNAL CONTROLLER
 // ---------------------------------------------------------------------------
 
 function renderFoodView() {
@@ -761,7 +774,6 @@ function renderFoodView() {
   foodListContainer.innerHTML = '';
   subtitle.textContent = `${todayFood.length} meal ${todayFood.length === 1 ? 'entry' : 'entries'} logged for today`;
 
-  // Render Weekly Summary Strip Metrics
   renderFoodSummaryStrip();
 
   if (todayFood.length === 0) {
@@ -857,7 +869,6 @@ function setupFoodSection() {
     });
   });
 
-  // Frequent Dishes Autocomplete
   document.querySelectorAll('#frequent-dishes-chips .freq-chip').forEach(chip => {
     chip.addEventListener('click', () => {
       const text = chip.getAttribute('data-text');
@@ -865,7 +876,6 @@ function setupFoodSection() {
     });
   });
 
-  // Qualitative Tag Selection
   document.querySelectorAll('#food-tag-chips .tag-chip').forEach(tagChip => {
     tagChip.addEventListener('click', () => {
       tagChip.classList.toggle('selected');
@@ -908,7 +918,7 @@ function setupFoodSection() {
 }
 
 // ---------------------------------------------------------------------------
-// 8. WEIGHT TRACKER (7-Day Moving Avg & Projected Goal Date)
+// 8. WEIGHT TRACKER CONTROLLER
 // ---------------------------------------------------------------------------
 
 let activeRotatorWeight = 74.5;
@@ -1017,16 +1027,13 @@ function renderWeightView() {
   statChange.textContent = diffFormatted;
   statChange.className = `stat-card-value ${diff <= 0 ? 'emerald' : 'amber'}`;
 
-  // 7-Day Moving Average
   const movingAvgs = calculate7DayMovingAverage(logs);
   const latestAvg = movingAvgs[movingAvgs.length - 1];
   movingAvgBadge.textContent = `${latestAvg} kg`;
 
-  // Projected Goal Completion Date
   const projectedDate = calculateProjectedGoalDate(logs, goal);
   projectedGoalBadge.textContent = projectedDate;
 
-  // Goal Progress Percentage
   if (goal && firstLog.weight !== goal) {
     const totalDist = Math.abs(firstLog.weight - goal);
     const coveredDist = Math.abs(firstLog.weight - currentWeight);
@@ -1087,7 +1094,6 @@ function renderWeightChart(logs, movingAvgs = []) {
 
   const pathD = points.reduce((acc, p, idx) => `${acc} ${idx === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`, '');
 
-  // Render Dashed 7-Day Moving Avg Curve
   let avgPathD = '';
   if (movingAvgs && movingAvgs.length === logs.length) {
     const avgPoints = movingAvgs.map((avgVal, i) => {
@@ -1143,7 +1149,7 @@ function deleteWeightLog(logId) {
 }
 
 // ---------------------------------------------------------------------------
-// 9. REAL INTERACTIVE MONTHLY CALENDAR GRID & INDICATOR DOTS
+// 9. REAL INTERACTIVE MONTHLY CALENDAR GRID
 // ---------------------------------------------------------------------------
 
 function renderCalendarView() {
@@ -1232,11 +1238,9 @@ function renderCalendarView() {
   const greenPct = Math.round((greenDaysCount / totalDaysInMonth) * 100);
   monthSummary.textContent = `${greenDaysCount}/${totalDaysInMonth} Green Days this Month (${greenPct}%)`;
 
-  // Selected Date Inspection Details
   const selectedDate = state.selectedHistoryDate || todayStr;
   selectedDateLabel.textContent = formatDateDisplay(selectedDate);
 
-  // 1. Weight on selected date
   const weightLog = state.weightLogs.find(w => w.date === selectedDate);
   if (weightLog) {
     weightValBox.textContent = `${weightLog.weight} kg`;
@@ -1246,7 +1250,6 @@ function renderCalendarView() {
     weightValBox.style.color = 'var(--text-muted)';
   }
 
-  // 2. Food eaten on selected date
   const foodLogOnDate = state.foodLogs.filter(f => f.date === selectedDate);
   foodListContainer.innerHTML = '';
   if (foodLogOnDate.length === 0) {
@@ -1264,7 +1267,6 @@ function renderCalendarView() {
     });
   }
 
-  // 3. Evening Stoic Review on selected date
   const review = state.eveningReviews[selectedDate];
   if (review) {
     reviewBoxContainer.innerHTML = `
@@ -1278,7 +1280,6 @@ function renderCalendarView() {
     reviewBoxContainer.style.color = 'var(--text-muted)';
   }
 
-  // 4. Habits checklist for selected date
   habitsListContainer.innerHTML = '';
   if (state.habits.length === 0) {
     habitsListContainer.innerHTML = `<div class="empty-state">No habits created yet.</div>`;
@@ -1396,7 +1397,6 @@ function initStoicSection() {
   currentQuoteIndex = getDailyQuoteIndex();
   renderStoicQuote(STOIC_QUOTES[currentQuoteIndex], true);
 
-  // Stoic Sub-Tab Navigation
   document.getElementById('stoic-tab-quote').addEventListener('click', () => {
     switchStoicPanel('stoic-panel-quote', 'stoic-tab-quote');
   });
@@ -1417,7 +1417,6 @@ function initStoicSection() {
     document.getElementById(tabId).classList.add('active');
   }
 
-  // Favorite Quote Bookmark Toggle
   document.getElementById('fav-quote-btn').addEventListener('click', () => {
     triggerHapticFeedback();
     const currObj = STOIC_QUOTES[currentQuoteIndex];
@@ -1433,7 +1432,6 @@ function initStoicSection() {
     renderStoicQuote(currObj, false);
   });
 
-  // Save 1-Line Personal Reaction
   document.getElementById('save-reaction-btn').addEventListener('click', () => {
     triggerHapticFeedback();
     const text = document.getElementById('daily-reaction-input').value.trim();
@@ -1442,7 +1440,6 @@ function initStoicSection() {
     alert('Personal thought saved for today!');
   });
 
-  // Save Evening Review Form
   document.getElementById('evening-review-form').addEventListener('submit', (e) => {
     e.preventDefault();
     triggerHapticFeedback();
@@ -1480,11 +1477,10 @@ function preloadEveningReview() {
 }
 
 // ---------------------------------------------------------------------------
-// 11. EXECUTIVE INSIGHTS DASHBOARD & SETTINGS/DATA EXPORT
+// 11. EXECUTIVE INSIGHTS DASHBOARD & SETTINGS/DATA BACKUP
 // ---------------------------------------------------------------------------
 
 function renderInsightsDashboard() {
-  // 1. Active Streaks
   let activeStreaks = 0;
   let totalConsistencySum = 0;
 
@@ -1496,11 +1492,9 @@ function renderInsightsDashboard() {
 
   document.getElementById('insight-active-streaks').textContent = activeStreaks;
 
-  // 2. 30-Day Discipline Consistency %
   const avgConsistency = state.habits.length > 0 ? Math.round(totalConsistencySum / state.habits.length) : 0;
   document.getElementById('insight-consistency-pct').textContent = `${avgConsistency}%`;
 
-  // 3. Weight Trend Direction & 7-Day Avg
   if (state.weightLogs.length > 0) {
     const latest = state.weightLogs[state.weightLogs.length - 1];
     const first = state.weightLogs[0];
@@ -1512,7 +1506,6 @@ function renderInsightsDashboard() {
     document.getElementById('insight-weight-7d').textContent = `7-Day Avg: ${avgs[avgs.length - 1]} kg`;
   }
 
-  // 4. Green Days this Month
   const today = new Date();
   const year = today.getFullYear();
   const month = today.getMonth();
@@ -1530,7 +1523,6 @@ function renderInsightsDashboard() {
   document.getElementById('insight-green-days').textContent = greenDays;
   document.getElementById('insight-green-pct').textContent = `${Math.round((greenDays / totalDays) * 100)}% of month`;
 
-  // Habit Breakdown List
   const breakdownContainer = document.getElementById('insights-habits-breakdown');
   breakdownContainer.innerHTML = '';
   state.habits.forEach(h => {
@@ -1553,27 +1545,253 @@ function renderInsightsDashboard() {
   });
 }
 
+// ---------------------------------------------------------------------------
+// 12. P0A-1A DATA BACKUP & DRY-RUN INSPECTOR ENGINE (HARDENED)
+// ---------------------------------------------------------------------------
+
+function calculatePayloadRecordCounts(payload) {
+  if (!payload || typeof payload !== 'object') return { habits: 0, completions: 0, weightLogs: 0, foodLogs: 0, eveningReviews: 0, dailyReactions: 0, savedQuotes: 0 };
+  
+  let completionsCount = 0;
+  const habits = Array.isArray(payload.habits) ? payload.habits : [];
+  habits.forEach(h => { completionsCount += (h.completions || []).length; });
+
+  return {
+    habits: habits.length,
+    completions: completionsCount,
+    weightLogs: Array.isArray(payload.weightLogs) ? payload.weightLogs.length : 0,
+    foodLogs: Array.isArray(payload.foodLogs) ? payload.foodLogs.length : 0,
+    eveningReviews: typeof payload.eveningReviews === 'object' && payload.eveningReviews !== null ? Object.keys(payload.eveningReviews).length : 0,
+    dailyReactions: typeof payload.dailyReactions === 'object' && payload.dailyReactions !== null ? Object.keys(payload.dailyReactions).length : 0,
+    savedQuotes: Array.isArray(payload.savedQuotes) ? payload.savedQuotes.length : 0
+  };
+}
+
+async function computeEnvelopeChecksum(envelope) {
+  const checksumEnvelope = {
+    schemaVersion: envelope.schemaVersion,
+    appVersion: envelope.appVersion,
+    exportTimestamp: envelope.exportTimestamp,
+    timezone: envelope.timezone,
+    recordCounts: envelope.recordCounts,
+    payload: envelope.payload
+  };
+  const canonicalString = toCanonicalJsonString(checksumEnvelope);
+  return await sha256Hex(canonicalString);
+}
+
+async function generatePersonalDataBackup() {
+  const payload = {
+    habits: state.habits,
+    weightLogs: state.weightLogs,
+    weightGoal: state.weightGoal,
+    foodLogs: state.foodLogs,
+    eveningReviews: state.eveningReviews,
+    dailyReactions: state.dailyReactions,
+    savedQuotes: state.savedQuotes,
+    settings: state.settings,
+    healthHistory: state.healthHistory
+  };
+
+  const recordCounts = calculatePayloadRecordCounts(payload);
+
+  const rawEnvelope = {
+    schemaVersion: APP_SCHEMA_VERSION,
+    appVersion: APP_VERSION,
+    exportTimestamp: new Date().toISOString(),
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata',
+    recordCounts: recordCounts,
+    payload: payload
+  };
+
+  const checksum = await computeEnvelopeChecksum(rawEnvelope);
+
+  const backupPackage = {
+    ...rawEnvelope,
+    checksum: checksum
+  };
+
+  downloadFile(`wellness_backup_${getTodayStr()}.json`, JSON.stringify(backupPackage, null, 2), 'application/json');
+}
+
+async function validateBackupEnvelope(jsonText) {
+  const res = {
+    parseValid: false,
+    structureValid: false,
+    checksumValid: false,
+    schemaCompatible: false,
+    recordCountsValid: false,
+    legacyFormat: false,
+    issues: [],
+    backup: null,
+    actualCounts: null
+  };
+
+  let backup;
+  try {
+    backup = JSON.parse(jsonText);
+    res.parseValid = true;
+    res.backup = backup;
+  } catch (err) {
+    res.issues.push('Invalid JSON formatting.');
+    return res;
+  }
+
+  if (!backup || typeof backup !== 'object') {
+    res.issues.push('Root JSON entity is not an object.');
+    return res;
+  }
+
+  // Check Legacy Unversioned Backup vs Formal Schema
+  if (backup.schemaVersion === undefined || backup.schemaVersion === null) {
+    res.legacyFormat = true;
+    res.schemaCompatible = true;
+    
+    // Legacy backup payload check
+    const legacyPayload = backup.payload || backup;
+    if (typeof legacyPayload === 'object' && (legacyPayload.habits || legacyPayload.weightLogs || legacyPayload.foodLogs)) {
+      res.structureValid = true;
+      res.actualCounts = calculatePayloadRecordCounts(legacyPayload);
+      res.recordCountsValid = true;
+    } else {
+      res.issues.push('Legacy backup is missing valid payload collections.');
+    }
+    return res;
+  }
+
+  // Formal Schema Validation
+  if (typeof backup.schemaVersion !== 'number') {
+    res.issues.push('Invalid schemaVersion type.');
+  }
+
+  if (!backup.payload || typeof backup.payload !== 'object') {
+    res.issues.push('Missing or invalid payload object.');
+    return res;
+  }
+  res.structureValid = true;
+
+  // Schema Compatibility
+  if (backup.schemaVersion <= APP_SCHEMA_VERSION) {
+    res.schemaCompatible = true;
+  } else {
+    res.issues.push(`Incompatible future schema version v${backup.schemaVersion}.`);
+  }
+
+  // Calculate & Compare Record Counts
+  res.actualCounts = calculatePayloadRecordCounts(backup.payload);
+  if (backup.recordCounts && typeof backup.recordCounts === 'object') {
+    let countsMatch = true;
+    Object.keys(res.actualCounts).forEach(k => {
+      if (backup.recordCounts[k] !== undefined && backup.recordCounts[k] !== res.actualCounts[k]) {
+        countsMatch = false;
+      }
+    });
+    res.recordCountsValid = countsMatch;
+    if (!countsMatch) {
+      res.issues.push('Declared record counts do not match calculated payload inventory.');
+    }
+  } else {
+    res.issues.push('Missing recordCounts inventory.');
+  }
+
+  // SHA-256 Integrity Checksum Validation over Envelope
+  if (backup.checksum && typeof backup.checksum === 'string') {
+    const expectedChecksum = await computeEnvelopeChecksum(backup);
+    if (backup.checksum === expectedChecksum) {
+      res.checksumValid = true;
+    } else {
+      res.issues.push('Failed integrity checksum validation (tampered or altered metadata/payload).');
+    }
+  } else {
+    res.issues.push('Missing integrity checksum in metadata.');
+  }
+
+  return res;
+}
+
+async function inspectBackupDryRun(jsonText) {
+  const previewModal = document.getElementById('dryrun-preview-modal');
+  const timestampEl = document.getElementById('dryrun-timestamp');
+  const appVerEl = document.getElementById('dryrun-app-version');
+  const schemaVerEl = document.getElementById('dryrun-schema-version');
+  const tzEl = document.getElementById('dryrun-timezone');
+  const checksumStatusEl = document.getElementById('dryrun-checksum-status');
+  const compatStatusEl = document.getElementById('dryrun-compat-status');
+  const countsContainer = document.getElementById('dryrun-counts-container');
+
+  const validation = await validateBackupEnvelope(jsonText);
+
+  if (!validation.parseValid) {
+    alert('❌ Invalid JSON File: Could not parse backup contents.');
+    return;
+  }
+
+  const backup = validation.backup;
+
+  if (validation.legacyFormat) {
+    schemaVerEl.textContent = 'Legacy backup — schema version not recorded';
+    appVerEl.textContent = backup.appVersion || 'Legacy / v1';
+    timestampEl.textContent = backup.exportTimestamp ? formatDateDisplay(backup.exportTimestamp.split('T')[0]) : 'Not Recorded';
+    tzEl.textContent = backup.timezone || 'Not Recorded';
+    checksumStatusEl.textContent = '⚠️ Unchecksummed Legacy Backup';
+    checksumStatusEl.style.color = 'var(--accent-amber)';
+    compatStatusEl.textContent = '✓ Legacy Format Compatible';
+    compatStatusEl.style.color = 'var(--accent-emerald)';
+  } else {
+    schemaVerEl.textContent = `Version ${backup.schemaVersion}`;
+    appVerEl.textContent = backup.appVersion || 'Unknown';
+    timestampEl.textContent = backup.exportTimestamp ? formatDateDisplay(backup.exportTimestamp.split('T')[0]) + ' ' + backup.exportTimestamp.split('T')[1].slice(0,5) : 'Unknown';
+    tzEl.textContent = backup.timezone || 'Unknown';
+
+    if (validation.checksumValid) {
+      checksumStatusEl.textContent = '✓ Passed Integrity Checksum';
+      checksumStatusEl.style.color = 'var(--accent-emerald)';
+    } else {
+      checksumStatusEl.textContent = '❌ Integrity Checksum Mismatch';
+      checksumStatusEl.style.color = 'var(--accent-rose)';
+    }
+
+    if (validation.schemaCompatible) {
+      compatStatusEl.textContent = `✓ Compatible (App Schema v${APP_SCHEMA_VERSION})`;
+      compatStatusEl.style.color = 'var(--accent-emerald)';
+    } else {
+      compatStatusEl.textContent = `❌ Incompatible (Future Schema v${backup.schemaVersion})`;
+      compatStatusEl.style.color = 'var(--accent-rose)';
+    }
+  }
+
+  const counts = validation.actualCounts || { habits: 0, completions: 0, weightLogs: 0, foodLogs: 0, eveningReviews: 0, dailyReactions: 0, savedQuotes: 0 };
+  const countsMismatchNotice = (!validation.legacyFormat && !validation.recordCountsValid) ? `<div style="grid-column: 1 / -1; color: var(--accent-amber); font-weight: 700; margin-top: 4px;">⚠️ Record Inventory Mismatch Detected</div>` : '';
+
+  countsContainer.innerHTML = `
+    <div><strong>Habits:</strong> ${counts.habits}</div>
+    <div><strong>Completions:</strong> ${counts.completions}</div>
+    <div><strong>Weight Entries:</strong> ${counts.weightLogs}</div>
+    <div><strong>Food Entries:</strong> ${counts.foodLogs}</div>
+    <div><strong>Stoic Reviews:</strong> ${counts.eveningReviews}</div>
+    <div><strong>Saved Quotes:</strong> ${counts.savedQuotes}</div>
+    ${countsMismatchNotice}
+  `;
+
+  previewModal.classList.add('active');
+}
+
 function setupDataExport() {
   document.getElementById('export-json-btn').addEventListener('click', () => {
-    const exportData = {
-      habits: state.habits,
-      weightLogs: state.weightLogs,
-      weightGoal: state.weightGoal,
-      foodLogs: state.foodLogs,
-      eveningReviews: state.eveningReviews,
-      dailyReactions: state.dailyReactions,
-      exportedAt: new Date().toISOString()
-    };
-    downloadFile(`wellness_backup_${getTodayStr()}.json`, JSON.stringify(exportData, null, 2), 'application/json');
+    generatePersonalDataBackup();
   });
 
-  document.getElementById('export-csv-btn').addEventListener('click', () => {
-    let csv = 'Type,Date,Details,Value\n';
-    state.weightLogs.forEach(w => csv += `Weight,${w.date},Weight Log,${w.weight} kg\n`);
-    state.foodLogs.forEach(f => csv += `Food,${f.date},"${f.mealType}: ${f.description}",\n`);
-    state.habits.forEach(h => h.completions.forEach(d => csv += `Habit,${d},"${h.name} Completed",\n`));
-    
-    downloadFile(`wellness_export_${getTodayStr()}.csv`, csv, 'text/csv');
+  const fileInput = document.getElementById('import-backup-file-input');
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        inspectBackupDryRun(event.target.result);
+        fileInput.value = '';
+      };
+      reader.readAsText(file);
+    }
   });
 }
 
@@ -1590,7 +1808,7 @@ function downloadFile(filename, text, type) {
 }
 
 // ---------------------------------------------------------------------------
-// 12. AUTOMATED DAILY HEALTH CHECK & DIAGNOSTICS LOG
+// 13. AUTOMATED DAILY HEALTH CHECK & DIAGNOSTICS LOG
 // ---------------------------------------------------------------------------
 
 async function runDailyHealthCheck() {
@@ -1612,17 +1830,16 @@ async function runDailyHealthCheck() {
     const dbRes = await fetch(CLOUD_SYNC_ENDPOINT);
     persistenceOk = dbRes.ok;
   } catch (e) {
+    persistenceOk = false;
     errors.push('Persistence Check failed: ' + e.message);
   }
 
   const statusText = `[${todayStr}] Uptime: ${uptimeOk ? 'OK' : 'FAIL'} | DB: ${persistenceOk ? 'OK' : 'FAIL'}`;
   
-  // Store status run history
   state.healthHistory.unshift(statusText);
   state.healthHistory = state.healthHistory.slice(0, 7);
   localStorage.setItem(STORAGE_KEYS.HEALTH_HISTORY, JSON.stringify(state.healthHistory));
 
-  // Update In-App Status Dot
   const dot = document.getElementById('health-status-dot');
   const textEl = document.getElementById('health-status-text');
   const logBox = document.getElementById('health-log-box');
@@ -1642,7 +1859,7 @@ async function runDailyHealthCheck() {
 }
 
 // ---------------------------------------------------------------------------
-// 13. MODAL & NAVIGATION CONTROLLERS
+// 14. MODAL & NAVIGATION CONTROLLERS
 // ---------------------------------------------------------------------------
 
 function setupNavigation() {
@@ -1800,7 +2017,7 @@ function setupModals() {
 }
 
 // ---------------------------------------------------------------------------
-// 14. INITIALIZATION & SERVICE WORKER
+// 15. INITIALIZATION & SERVICE WORKER
 // ---------------------------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
