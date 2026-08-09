@@ -163,7 +163,6 @@ const STOIC_QUOTES = [
 // ---------------------------------------------------------------------------
 // 2. SECURE PASSCODE HASH SECURITY & CLOUD DATABASE ENGINE
 // ---------------------------------------------------------------------------
-// SHA-256 Hash of Passcode "7890" (Passcode is not stored in plaintext anywhere in code)
 const TARGET_PASSCODE_HASH = "434f4d14c1eb231306b51aaa160c021b63670ac6ca67fb8e403f4500983dd1e4";
 
 async function sha256Hex(str) {
@@ -177,10 +176,12 @@ const STORAGE_KEYS = {
   HABITS: 'wellness_habits_data',
   WEIGHT_LOGS: 'wellness_weight_logs_data',
   WEIGHT_GOAL: 'wellness_weight_goal_data',
-  SESSION_UNLOCKED: 'wellness_session_unlocked'
+  SESSION_UNLOCKED: 'wellness_session_unlocked',
+  LAST_HEALTH_CHECK: 'wellness_last_health_check_date'
 };
 
 const CLOUD_SYNC_ENDPOINT = 'https://crudcrud.com/api/df9fe4cc2a2b4f0ba158f3f54b74b576/wellness/6a7872454db36503e87d5f2b';
+const PUBLIC_LIVE_URL = 'https://kjsinghpec-bit.github.io/wellness-pwa/';
 
 function getTodayStr() {
   const d = new Date();
@@ -188,7 +189,7 @@ function getTodayStr() {
 }
 
 function formatDateDisplay(dateStr) {
-  const options = { weekday: 'short', month: 'short', day: 'numeric' };
+  const options = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
   const d = new Date(dateStr + 'T00:00:00');
   return d.toLocaleDateString('en-US', options);
 }
@@ -232,6 +233,7 @@ class AppState {
     this.weightLogs = this.load(STORAGE_KEYS.WEIGHT_LOGS, DEFAULT_WEIGHT_LOGS);
     this.weightGoal = this.load(STORAGE_KEYS.WEIGHT_GOAL, DEFAULT_GOAL);
     this.activeTab = 'habits';
+    this.selectedHistoryDate = getTodayStr();
   }
 
   load(key, fallback) {
@@ -297,6 +299,7 @@ class AppState {
 
           renderHabitsView();
           renderWeightView();
+          renderHistoryView();
         }
       }
     } catch (e) {}
@@ -530,6 +533,7 @@ function toggleHabitCompletion(habitId) {
 
   state.saveHabits();
   renderHabitsView();
+  renderHistoryView();
 }
 
 function deleteHabit(habitId) {
@@ -537,6 +541,7 @@ function deleteHabit(habitId) {
     state.habits = state.habits.filter(h => h.id !== habitId);
     state.saveHabits();
     renderHabitsView();
+    renderHistoryView();
   }
 }
 
@@ -691,11 +696,108 @@ function deleteWeightLog(logId) {
     state.weightLogs = state.weightLogs.filter(l => l.id !== logId);
     state.saveWeightLogs();
     renderWeightView();
+    renderHistoryView();
   }
 }
 
 // ---------------------------------------------------------------------------
-// 6. STOIC REFLECTIONS CONTROLLER
+// 6. FULL HISTORY VIEW CONTROLLER (Database-backed lifetime inspection)
+// ---------------------------------------------------------------------------
+
+function renderHistoryView() {
+  const datePicker = document.getElementById('history-date-picker');
+  const selectedDateLabel = document.getElementById('history-selected-date-label');
+  const daySummaryBadge = document.getElementById('history-day-summary-badge');
+  const weightValBox = document.getElementById('history-weight-val');
+  const habitsListContainer = document.getElementById('history-habits-list');
+  const totalDaysPill = document.getElementById('history-total-days-pill');
+
+  const selectedDate = state.selectedHistoryDate || getTodayStr();
+  datePicker.value = selectedDate;
+
+  // Calculate unique recorded dates across habits and weight logs
+  const allRecordedDates = new Set();
+  state.weightLogs.forEach(w => allRecordedDates.add(w.date));
+  state.habits.forEach(h => h.completions.forEach(d => allRecordedDates.add(d)));
+  
+  totalDaysPill.textContent = `${allRecordedDates.size} Days Logged`;
+  selectedDateLabel.textContent = formatDateDisplay(selectedDate);
+
+  // Weight for selected date
+  const weightLog = state.weightLogs.find(w => w.date === selectedDate);
+  if (weightLog) {
+    weightValBox.textContent = `${weightLog.weight} lbs`;
+    weightValBox.style.color = 'var(--accent-emerald)';
+  } else {
+    weightValBox.textContent = 'No weight logged on this date';
+    weightValBox.style.color = 'var(--text-muted)';
+  }
+
+  // Habits completed on selected date
+  habitsListContainer.innerHTML = '';
+  if (state.habits.length === 0) {
+    habitsListContainer.innerHTML = `<div class="empty-state">No habits created yet.</div>`;
+    daySummaryBadge.textContent = '0 Completed';
+    return;
+  }
+
+  let completedOnDateCount = 0;
+  state.habits.forEach(habit => {
+    const isDone = habit.completions.includes(selectedDate);
+    if (isDone) completedOnDateCount++;
+
+    const item = document.createElement('div');
+    item.className = `history-habit-item ${isDone ? 'done' : 'not-done'}`;
+    item.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span>${habit.icon || '🎯'}</span>
+        <span>${habit.name}</span>
+      </div>
+      <span class="${isDone ? 'history-badge-done' : 'history-badge-not-done'}">
+        ${isDone ? '✓ Completed' : '○ Pending'}
+      </span>
+    `;
+    habitsListContainer.appendChild(item);
+  });
+
+  daySummaryBadge.textContent = `${completedOnDateCount}/${state.habits.length} Done`;
+}
+
+function setupHistoryControls() {
+  const datePicker = document.getElementById('history-date-picker');
+  const prevBtn = document.getElementById('history-prev-day-btn');
+  const todayBtn = document.getElementById('history-today-btn');
+  const nextBtn = document.getElementById('history-next-day-btn');
+
+  datePicker.addEventListener('change', (e) => {
+    if (e.target.value) {
+      state.selectedHistoryDate = e.target.value;
+      renderHistoryView();
+    }
+  });
+
+  prevBtn.addEventListener('click', () => {
+    const d = new Date(state.selectedHistoryDate + 'T00:00:00');
+    d.setDate(d.getDate() - 1);
+    state.selectedHistoryDate = d.toISOString().split('T')[0];
+    renderHistoryView();
+  });
+
+  todayBtn.addEventListener('click', () => {
+    state.selectedHistoryDate = getTodayStr();
+    renderHistoryView();
+  });
+
+  nextBtn.addEventListener('click', () => {
+    const d = new Date(state.selectedHistoryDate + 'T00:00:00');
+    d.setDate(d.getDate() + 1);
+    state.selectedHistoryDate = d.toISOString().split('T')[0];
+    renderHistoryView();
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 7. STOIC REFLECTIONS CONTROLLER
 // ---------------------------------------------------------------------------
 
 let currentQuoteIndex = 0;
@@ -744,7 +846,50 @@ function initStoicSection() {
 }
 
 // ---------------------------------------------------------------------------
-// 7. MODAL & NAVIGATION CONTROLLERS
+// 8. AUTOMATED DAILY HEALTH CHECK (Uptime, Persistence & Error Logging)
+// ---------------------------------------------------------------------------
+
+async function runDailyHealthCheck() {
+  const todayStr = getTodayStr();
+  const lastCheck = localStorage.getItem(STORAGE_KEYS.LAST_HEALTH_CHECK);
+
+  // Run once per day on first session load
+  if (lastCheck === todayStr) return;
+
+  console.log('--- STARTING AUTOMATED DAILY HEALTH CHECK ---');
+  let uptimeOk = false;
+  let persistenceOk = false;
+  let errors = [];
+
+  // 1. Uptime Check (Production URL reachability)
+  try {
+    const res = await fetch(PUBLIC_LIVE_URL, { method: 'HEAD' });
+    uptimeOk = res.ok || res.status === 200 || res.status === 304;
+  } catch (e) {
+    uptimeOk = false;
+    errors.push('Uptime Check failed: ' + e.message);
+  }
+
+  // 2. Persistence Check (Cloud Database endpoint read)
+  try {
+    const dbRes = await fetch(CLOUD_SYNC_ENDPOINT);
+    persistenceOk = dbRes.ok;
+  } catch (e) {
+    persistenceOk = false;
+    errors.push('Persistence Check failed: ' + e.message);
+  }
+
+  // Log Summary
+  console.log(`[Daily Health Check Summary ${todayStr}]`);
+  console.log(`- Uptime Check: ${uptimeOk ? '✓ PASSED (200 OK)' : ' FAILED'}`);
+  console.log(`- Persistence Check: ${persistenceOk ? '✓ PASSED (DB Active)' : ' FAILED'}`);
+  console.log(`- Error Logging: ${errors.length === 0 ? '✓ ZERO ERRORS' : errors.join('; ')}`);
+
+  localStorage.setItem(STORAGE_KEYS.LAST_HEALTH_CHECK, todayStr);
+}
+
+// ---------------------------------------------------------------------------
+// 9. MODAL & NAVIGATION CONTROLLERS
 // ---------------------------------------------------------------------------
 
 function setupNavigation() {
@@ -757,6 +902,7 @@ function setupNavigation() {
   const navMap = {
     habits: { title: 'Habits', icon: '🌱', showBtn: true },
     weight: { title: 'Weight Tracker', icon: '⚖️', showBtn: false },
+    history: { title: 'History Log', icon: '📅', showBtn: false },
     stoic: { title: 'Stoic Mind', icon: '🏛️', showBtn: false }
   };
 
@@ -837,6 +983,7 @@ function setupModals() {
       });
       state.saveHabits();
       renderHabitsView();
+      renderHistoryView();
       nameInput.value = '';
       addHabitModal.classList.remove('active');
     }
@@ -860,6 +1007,7 @@ function setupModals() {
       }
       state.saveWeightLogs();
       renderWeightView();
+      renderHistoryView();
       document.getElementById('weight-input').value = '';
       logWeightModal.classList.remove('active');
     }
@@ -878,19 +1026,22 @@ function setupModals() {
 }
 
 // ---------------------------------------------------------------------------
-// 8. INITIALIZATION & SERVICE WORKER
+// 10. INITIALIZATION & SERVICE WORKER
 // ---------------------------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
   setupPasscodeLock();
   setupNavigation();
+  setupHistoryControls();
   setupModals();
   
   renderHabitsView();
   renderWeightView();
+  renderHistoryView();
   initStoicSection();
 
   state.pullFromCloud();
+  runDailyHealthCheck();
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js')

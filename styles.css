@@ -50,9 +50,7 @@ body {
   padding-top: env(safe-area-inset-top);
 }
 
-/* -------------------------------------------------------------
-   PASSCODE LOCK OVERLAY
-------------------------------------------------------------- */
+/* Passcode Overlay */
 .passcode-overlay {
   position: fixed;
   top: 0;
@@ -113,7 +111,6 @@ body {
   color: var(--text-secondary);
 }
 
-/* PIN Dots */
 .pin-dots-container {
   display: flex;
   gap: 16px;
@@ -144,7 +141,6 @@ body {
   text-align: center;
 }
 
-/* Keypad Grid */
 .keypad-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -191,7 +187,7 @@ body {
   border: 1px solid var(--border-color);
 }
 
-/* App Header */
+/* Header */
 .app-header {
   position: sticky;
   top: 0;
@@ -266,7 +262,7 @@ body {
   background: rgba(56, 189, 248, 0.25);
 }
 
-/* Main Container */
+/* Main Content Container */
 .main-content {
   flex: 1;
   max-width: 600px;
@@ -275,7 +271,6 @@ body {
   padding: 16px 16px calc(90px + env(safe-area-inset-bottom)) 16px;
 }
 
-/* Views Management */
 .tab-view {
   display: none;
   animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -296,7 +291,6 @@ body {
   }
 }
 
-/* Common Section Headers */
 .section-banner {
   background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.9));
   border: 1px solid var(--border-color);
@@ -331,9 +325,7 @@ body {
   font-weight: 700;
 }
 
-/* -------------------------------------------------------------
-   HABIT TRACKER SECTION
-------------------------------------------------------------- */
+/* Habit Cards */
 .habits-list {
   display: flex;
   flex-direction: column;
@@ -416,10 +408,6 @@ body {
   outline: none;
 }
 
-.habit-toggle-btn:active {
-  transform: scale(0.9);
-}
-
 .habit-card.completed .habit-toggle-btn {
   background: var(--accent-emerald);
   border-color: var(--accent-emerald);
@@ -427,7 +415,6 @@ body {
   box-shadow: 0 0 15px var(--accent-emerald-glow);
 }
 
-/* Weekly View Rows */
 .habit-weekly-row {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -496,9 +483,7 @@ body {
   color: var(--accent-rose);
 }
 
-/* -------------------------------------------------------------
-   WEIGHT TRACKER SECTION
-------------------------------------------------------------- */
+/* Weight Section */
 .weight-stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -686,8 +671,128 @@ body {
 }
 
 /* -------------------------------------------------------------
-   STOIC REFLECTIONS SECTION
+   HISTORY VIEW SECTION
 ------------------------------------------------------------- */
+.history-controls-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-card);
+}
+
+.history-nav-btns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.history-nav-btns .btn-secondary {
+  padding: 10px;
+  font-size: 0.82rem;
+}
+
+.history-detail-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-card);
+}
+
+.history-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.history-card-header h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.history-status-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid var(--border-highlight);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+}
+
+.history-weight-box {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.history-sub-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.history-weight-val {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--accent-emerald);
+}
+
+.history-habits-box {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.history-habits-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.history-habit-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+}
+
+.history-habit-item.done {
+  border-left: 3px solid var(--accent-emerald);
+}
+
+.history-habit-item.not-done {
+  border-left: 3px solid var(--text-muted);
+  opacity: 0.6;
+}
+
+.history-badge-done {
+  color: var(--accent-emerald);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.history-badge-not-done {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+/* Stoic Section */
 .stoic-container {
   display: flex;
   flex-direction: column;
@@ -798,12 +903,9 @@ body {
 
 .shuffle-quote-btn:active {
   transform: scale(0.98);
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.3), rgba(168, 85, 247, 0.3));
 }
 
-/* -------------------------------------------------------------
-   BOTTOM NAVIGATION BAR
-------------------------------------------------------------- */
+/* Bottom Nav */
 .bottom-nav {
   position: fixed;
   bottom: 0;
@@ -814,7 +916,7 @@ body {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--border-color);
-  padding: 8px 16px calc(8px + env(safe-area-inset-bottom)) 16px;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom)) 12px;
   display: flex;
   justify-content: space-around;
   max-width: 600px;
@@ -829,9 +931,9 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 6px 16px;
+  padding: 6px 10px;
   border-radius: var(--radius-md);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -839,8 +941,8 @@ body {
 }
 
 .nav-tab svg {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   stroke: currentColor;
   stroke-width: 2;
   fill: none;
@@ -859,9 +961,7 @@ body {
   transform: scale(0.95);
 }
 
-/* -------------------------------------------------------------
-   MODALS
-------------------------------------------------------------- */
+/* Modals */
 .modal-overlay {
   position: fixed;
   top: 0;

@@ -16,7 +16,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
   <!-- SEO Meta -->
-  <meta name="description" content="A personal wellness app featuring habit tracking, weight plotting, and Stoic reflections with cloud sync and passcode security.">
+  <meta name="description" content="A personal wellness app featuring habit tracking, weight plotting, full history logs, and Stoic reflections with cloud sync and passcode security.">
 
   <!-- Stylesheet -->
   <link rel="stylesheet" href="styles.css">
@@ -157,7 +157,53 @@
       </div>
     </section>
 
-    <!-- VIEW 3: STOIC REFLECTIONS -->
+    <!-- VIEW 3: FULL HISTORY VIEW -->
+    <section id="history-view" class="tab-view">
+      <div class="section-banner">
+        <div>
+          <div class="banner-title">Lifetime History Log</div>
+          <div class="banner-subtitle">Review habits & weight for any past date</div>
+        </div>
+        <div class="stat-pill" id="history-total-days-pill">0 Days</div>
+      </div>
+
+      <!-- Date Selection Controls -->
+      <div class="history-controls-card">
+        <div class="form-group" style="margin-bottom: 10px;">
+          <label class="form-label">Select Date to Inspect</label>
+          <input type="date" id="history-date-picker" class="form-input">
+        </div>
+        <div class="history-nav-btns">
+          <button class="btn-secondary" id="history-prev-day-btn">← Prev Day</button>
+          <button class="btn-secondary" id="history-today-btn">Today</button>
+          <button class="btn-secondary" id="history-next-day-btn">Next Day →</button>
+        </div>
+      </div>
+
+      <!-- Historical Record Card for Selected Date -->
+      <div class="history-detail-card">
+        <div class="history-card-header">
+          <h3 id="history-selected-date-label">Today</h3>
+          <span class="history-status-badge" id="history-day-summary-badge">Loading...</span>
+        </div>
+
+        <!-- Weight on Selected Day -->
+        <div class="history-weight-box">
+          <div class="history-sub-title">⚖️ Weight Recorded</div>
+          <div class="history-weight-val" id="history-weight-val">No log for this date</div>
+        </div>
+
+        <!-- Habits Breakdown on Selected Day -->
+        <div class="history-habits-box">
+          <div class="history-sub-title">🌱 Habits Completed on this Date</div>
+          <div class="history-habits-list" id="history-habits-list">
+            <!-- Dynamic Past Habits Rendered Here -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 4: STOIC REFLECTIONS -->
     <section id="stoic-view" class="tab-view">
       <div class="stoic-container">
         <!-- Hero Quote Card -->
@@ -201,6 +247,10 @@
     <button class="nav-tab" data-tab="weight" id="nav-weight-tab">
       <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       <span>Weight</span>
+    </button>
+    <button class="nav-tab" data-tab="history" id="nav-history-tab">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span>History</span>
     </button>
     <button class="nav-tab" data-tab="stoic" id="nav-stoic-tab">
       <svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
