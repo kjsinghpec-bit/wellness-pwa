@@ -345,18 +345,30 @@ const DEFAULT_SETTINGS = {
   streakGraceEnabled: true
 };
 
+function syncDerivedCompletionArrays(habit) {
+  if (!habit) return;
+  if (!habit.completionRecords) habit.completionRecords = [];
+
+  // Derive legacy arrays atomically from canonical completionRecords source of truth
+  habit.completions = Array.from(new Set(habit.completionRecords.map(r => r.localDate)));
+  habit.minimumCompletions = Array.from(new Set(
+    habit.completionRecords
+      .filter(r => r.completionLevel === 'minimum')
+      .map(r => r.localDate)
+  ));
+}
+
 class AppState {
   constructor() {
     this.habits = this.load(STORAGE_KEYS.HABITS, DEFAULT_HABITS);
-    // Backward compatibility normalization
+    // Backward compatibility normalization & atomic canonical synchronization
     this.habits.forEach((h, idx) => {
       if (h.activationModeEnabled === undefined) h.activationModeEnabled = false;
-      if (!h.minimumCompletions) h.minimumCompletions = [];
       if (!h.completionRecords) {
         h.completionRecords = [];
         if (Array.isArray(h.completions)) {
           h.completions.forEach((dateStr, cIdx) => {
-            const isMin = h.minimumCompletions.includes(dateStr);
+            const isMin = Array.isArray(h.minimumCompletions) && h.minimumCompletions.includes(dateStr);
             h.completionRecords.push({
               id: 'rec_init_' + (h.id || idx) + '_' + cIdx,
               habitId: h.id || ('h_' + idx),
@@ -367,6 +379,7 @@ class AppState {
           });
         }
       }
+      syncDerivedCompletionArrays(h);
     });
 
     this.weightLogs = this.load(STORAGE_KEYS.WEIGHT_LOGS, generateDefaultWeightLogs());
@@ -1308,30 +1321,15 @@ function toggleHabitCompletion(habitId, dateStr = getTodayStr(), level = null) {
   if (!habit) return;
 
   if (!habit.completionRecords) habit.completionRecords = [];
-  if (!habit.minimumCompletions) habit.minimumCompletions = [];
 
-  const idx = habit.completions.indexOf(dateStr);
   const recordIdx = habit.completionRecords.findIndex(r => r.localDate === dateStr);
 
-  if (idx > -1 && level === null) {
-    // Toggling OFF when already completed
-    habit.completions.splice(idx, 1);
-    if (recordIdx > -1) habit.completionRecords.splice(recordIdx, 1);
-    const minIdx = habit.minimumCompletions.indexOf(dateStr);
-    if (minIdx > -1) habit.minimumCompletions.splice(minIdx, 1);
+  if (recordIdx > -1 && level === null) {
+    // Toggling OFF when already completed -> Remove from canonical completionRecords
+    habit.completionRecords.splice(recordIdx, 1);
   } else {
-    // Marking complete or updating level explicitly with STABLE IDENTITIES
+    // Marking complete or updating level explicitly in canonical completionRecords
     const targetLevel = level || (habit.activationModeEnabled ? 'ideal' : 'ideal');
-
-    if (idx === -1) habit.completions.push(dateStr);
-
-    if (targetLevel === 'minimum') {
-      if (!habit.minimumCompletions.includes(dateStr)) habit.minimumCompletions.push(dateStr);
-    } else {
-      const minIdx = habit.minimumCompletions.indexOf(dateStr);
-      if (minIdx > -1) habit.minimumCompletions.splice(minIdx, 1);
-    }
-
     const existingId = (recordIdx > -1 && habit.completionRecords[recordIdx].id) ? habit.completionRecords[recordIdx].id : generateRecordId();
 
     const newRecord = {
@@ -1339,7 +1337,7 @@ function toggleHabitCompletion(habitId, dateStr = getTodayStr(), level = null) {
       habitId: habit.id,
       localDate: dateStr,
       completionLevel: targetLevel,
-      startedAt: new Date().toISOString(),
+      startedAt: (recordIdx > -1 && habit.completionRecords[recordIdx].startedAt) ? habit.completionRecords[recordIdx].startedAt : new Date().toISOString(),
       completedAt: new Date().toISOString()
     };
 
@@ -1348,10 +1346,13 @@ function toggleHabitCompletion(habitId, dateStr = getTodayStr(), level = null) {
     } else {
       habit.completionRecords.push(newRecord);
     }
-
-    const streakInfo = calculateStreak(habit.completions);
-    checkStreakMilestone(habit.name, streakInfo.streak);
   }
+
+  // ATOMIC SYNCHRONIZATION: Derive legacy arrays from canonical source
+  syncDerivedCompletionArrays(habit);
+
+  const streakInfo = calculateStreak(habit.completions);
+  checkStreakMilestone(habit.name, streakInfo.streak);
 
   state.saveHabits();
   renderTodayView();
