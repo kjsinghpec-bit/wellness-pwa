@@ -435,69 +435,79 @@ body {
    VIEW 0: UNIFIED TODAY SCREEN (REFINED P1-1 POLISH + P1-2 JUST START)
 ------------------------------------------------------------- */
 .today-greeting-card {
-  background: rgba(56, 189, 248, 0.06);
-  border: 1px solid var(--border-color);
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(168, 85, 247, 0.05));
+  border: 1px solid rgba(56, 189, 248, 0.2);
   border-radius: var(--radius-lg);
-  padding: 16px 18px;
-  margin-bottom: 12px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-card);
 }
 
 .today-greeting-title {
-  font-size: 1.3rem;
+  font-size: 1.45rem;
   font-weight: 800;
   color: var(--text-primary);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
 }
 
 .today-date-subtitle {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  margin-top: 2px;
+  font-size: 0.82rem;
+  color: var(--accent-primary);
+  font-weight: 600;
+  margin-top: 3px;
 }
 
 /* Compact Yesterday's Promise Card */
-.yesterday-promise-card.compact {
-  background: rgba(245, 158, 11, 0.05);
-  border: 1px solid rgba(245, 158, 11, 0.2);
-  border-radius: var(--radius-md);
-  padding: 10px 14px;
-  margin-bottom: 12px;
+.yesterday-promise-card.compact,
+.promise-card {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-card);
 }
 
 .promise-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
-.promise-icon { font-size: 0.95rem; margin-right: 4px; }
+.promise-icon { font-size: 1rem; margin-right: 4px; }
 
-.promise-label {
-  font-size: 0.72rem;
+.promise-label,
+.promise-title {
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   color: var(--accent-amber);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .promise-text {
-  font-size: 0.88rem;
+  font-size: 0.92rem;
   font-style: italic;
   color: var(--text-primary);
-  line-height: 1.35;
-  margin-top: 2px;
+  line-height: 1.4;
+  margin-top: 4px;
 }
 
-.promise-action-btn {
-  background: rgba(245, 158, 11, 0.12);
+.promise-action-btn,
+.promise-remember-btn {
+  background: rgba(245, 158, 11, 0.15);
   color: var(--accent-amber);
-  border: 1px solid rgba(245, 158, 11, 0.25);
-  padding: 3px 8px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  padding: 4px 10px;
   border-radius: var(--radius-full);
-  font-size: 0.72rem;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: 700;
   cursor: pointer;
+  min-height: 32px;
 }
 
 /* Morning Intention States */
@@ -505,37 +515,40 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  padding: 14px;
-  margin-bottom: 12px;
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .intention-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
-.intention-icon { font-size: 1rem; }
-.intention-title { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); }
+.intention-icon { font-size: 1.1rem; }
+.intention-title { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); }
 
 .intention-saved-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .intention-saved-focus {
-  font-size: 0.92rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--accent-primary);
-  line-height: 1.35;
+  line-height: 1.4;
 }
 
 .intention-saved-neglect {
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   color: var(--text-secondary);
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
 /* Section Title: Still worth doing today */
@@ -543,43 +556,48 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.88rem;
-  font-weight: 700;
+  font-size: 0.95rem;
+  font-weight: 800;
   color: var(--text-primary);
-  margin: 14px 0 10px 0;
-  letter-spacing: -0.01em;
+  margin: 16px 0 10px 0;
+  letter-spacing: -0.015em;
 }
 
 .today-habits-count-badge {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
+  font-weight: 700;
   color: var(--accent-primary);
-  background: rgba(56, 189, 248, 0.1);
-  padding: 2px 8px;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  padding: 3px 10px;
   border-radius: var(--radius-full);
 }
 
 .today-habits-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
 .today-habit-item {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   transition: all 0.2s ease;
+  min-height: 56px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 
 .today-habit-item.completed {
-  opacity: 0.55;
-  background: rgba(255, 255, 255, 0.015);
-  border-color: rgba(255, 255, 255, 0.03);
+  opacity: 0.5;
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.04);
+  box-shadow: none;
 }
 
 .today-habit-item.completed .today-habit-name {
@@ -590,15 +608,35 @@ body {
 .today-habit-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
-.today-habit-icon { font-size: 1.2rem; }
-.today-habit-name { font-size: 0.9rem; font-weight: 600; color: var(--text-primary); }
+.today-habit-icon { font-size: 1.3rem; }
+.today-habit-name { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); }
+
+.today-start-btn {
+  background: linear-gradient(135deg, var(--accent-amber), #d97706) !important;
+  color: #000000 !important;
+  border: none !important;
+  padding: 8px 16px !important;
+  border-radius: var(--radius-full) !important;
+  font-size: 0.8rem !important;
+  font-weight: 800 !important;
+  cursor: pointer !important;
+  min-height: 44px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3) !important;
+  transition: transform 0.15s ease !important;
+}
+
+.today-start-btn:active {
+  transform: scale(0.95) !important;
+}
 
 .today-habit-check-btn {
-  width: 26px;
-  height: 26px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-full);
   border: 2px solid var(--text-muted);
   background: transparent;
@@ -606,30 +644,33 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.85rem;
-  font-weight: 700;
+  font-size: 1rem;
+  font-weight: 800;
   cursor: pointer;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .today-habit-item.completed .today-habit-check-btn {
   background: var(--accent-emerald);
   border-color: var(--accent-emerald);
   color: #ffffff;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
 }
 
 /* Compact "Today at a glance" Bar */
 .today-at-a-glance-bar {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 8px 12px;
-  font-size: 0.78rem;
+  border-radius: var(--radius-lg);
+  padding: 10px 14px;
+  font-size: 0.8rem;
   color: var(--text-secondary);
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-card);
 }
 
 .glance-label {
