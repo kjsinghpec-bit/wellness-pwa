@@ -164,7 +164,7 @@ const STOIC_QUOTES = [
 // 2. SECURE PASSCODE HASH SECURITY & CLOUD DATABASE ENGINE
 // ---------------------------------------------------------------------------
 // SHA-256 Hash of Passcode "7890" (Passcode is not stored in plaintext anywhere in code)
-const TARGET_PASSCODE_HASH = "6a95bbab63d587b596398c4bd7e91a132f24032d2007d107e5ea71967724b092";
+const TARGET_PASSCODE_HASH = "434f4d14c1eb231306b51aaa160c021b63670ac6ca67fb8e403f4500983dd1e4";
 
 async function sha256Hex(str) {
   const msgBuffer = new TextEncoder().encode(str);
