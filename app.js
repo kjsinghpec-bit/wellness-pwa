@@ -1,4 +1,4 @@
-/* Wellness PWA Main Application Script - v2.1.0 (P0A-1A Hardened Backup & Inspector) */
+/* Wellness PWA Main Application Script - v2.1.0 (P1-1 Today Screen) */
 
 // ---------------------------------------------------------------------------
 // 1. STOIC QUOTES DATASET
@@ -161,7 +161,7 @@ const STOIC_QUOTES = [
 ];
 
 // ---------------------------------------------------------------------------
-// 2. CONSTANTS, SCHEMA VERSION & UTILITIES (P0A-1A HARDENED)
+// 2. CONSTANTS, SCHEMA VERSION & UTILITIES
 // ---------------------------------------------------------------------------
 const APP_SCHEMA_VERSION = 1;
 const APP_VERSION = "2.1.0";
@@ -174,7 +174,6 @@ async function sha256Hex(str) {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Canonical Key-Sorted Stringification for SHA-256 Integrity Checksum
 function toCanonicalJsonString(obj) {
   if (obj === null || typeof obj !== 'object') {
     return JSON.stringify(obj);
@@ -193,6 +192,7 @@ const STORAGE_KEYS = {
   WEIGHT_GOAL: 'wellness_weight_goal_data',
   FOOD_LOGS: 'wellness_food_logs_data',
   EVENING_REVIEWS: 'wellness_evening_reviews_data',
+  MORNING_INTENTIONS: 'wellness_morning_intentions_data',
   SAVED_QUOTES: 'wellness_saved_quotes_data',
   DAILY_REACTIONS: 'wellness_daily_reactions_data',
   SETTINGS: 'wellness_app_settings_data',
@@ -206,6 +206,12 @@ const PUBLIC_LIVE_URL = 'https://kjsinghpec-bit.github.io/wellness-pwa/';
 
 function getTodayStr() {
   const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function getYesterdayStr() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
@@ -301,12 +307,13 @@ class AppState {
     this.weightGoal = this.load(STORAGE_KEYS.WEIGHT_GOAL, 70.0);
     this.foodLogs = this.load(STORAGE_KEYS.FOOD_LOGS, DEFAULT_FOOD_LOGS);
     this.eveningReviews = this.load(STORAGE_KEYS.EVENING_REVIEWS, {});
+    this.morningIntentions = this.load(STORAGE_KEYS.MORNING_INTENTIONS, {});
     this.savedQuotes = this.load(STORAGE_KEYS.SAVED_QUOTES, []);
     this.dailyReactions = this.load(STORAGE_KEYS.DAILY_REACTIONS, {});
     this.settings = this.load(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
     this.healthHistory = this.load(STORAGE_KEYS.HEALTH_HISTORY, []);
 
-    this.activeTab = 'habits';
+    this.activeTab = 'today';
     this.activeCategoryFilter = 'ALL';
     
     const today = new Date();
@@ -341,6 +348,7 @@ class AppState {
   saveWeightGoal() { this.save(STORAGE_KEYS.WEIGHT_GOAL, this.weightGoal); }
   saveFoodLogs() { this.save(STORAGE_KEYS.FOOD_LOGS, this.foodLogs); }
   saveEveningReviews() { this.save(STORAGE_KEYS.EVENING_REVIEWS, this.eveningReviews); }
+  saveMorningIntentions() { this.save(STORAGE_KEYS.MORNING_INTENTIONS, this.morningIntentions); }
   saveSavedQuotes() { this.save(STORAGE_KEYS.SAVED_QUOTES, this.savedQuotes); }
   saveDailyReactions() { this.save(STORAGE_KEYS.DAILY_REACTIONS, this.dailyReactions); }
   saveSettings() { this.save(STORAGE_KEYS.SETTINGS, this.settings); }
@@ -381,6 +389,7 @@ class AppState {
           localStorage.setItem(STORAGE_KEYS.FOOD_LOGS, JSON.stringify(this.foodLogs));
           localStorage.setItem(STORAGE_KEYS.EVENING_REVIEWS, JSON.stringify(this.eveningReviews));
 
+          renderTodayView();
           renderHabitsView();
           renderFoodView();
           renderWeightView();
@@ -549,7 +558,185 @@ function setupReminderBanner() {
 }
 
 // ---------------------------------------------------------------------------
-// 6. HABIT TRACKER CONTROLLER
+// 6. P1-1 UNIFIED TODAY VIEW CONTROLLER
+// ---------------------------------------------------------------------------
+
+function renderTodayView() {
+  const todayStr = getTodayStr();
+  const yesterdayStr = getYesterdayStr();
+  const now = new Date();
+  const hour = now.getHours();
+
+  // 1. Context-Aware Greeting
+  const greetingEl = document.getElementById('today-greeting-title');
+  const dateEl = document.getElementById('today-date-subtitle');
+
+  if (greetingEl && dateEl) {
+    if (hour >= 5 && hour < 12) {
+      greetingEl.textContent = 'Good morning, Karamjot';
+    } else if (hour >= 12 && hour < 17) {
+      greetingEl.textContent = 'Good afternoon, Karamjot';
+    } else {
+      greetingEl.textContent = 'Good evening, Karamjot';
+    }
+    dateEl.textContent = formatDateDisplay(todayStr);
+  }
+
+  // 2. Yesterday's Promise Card
+  const promiseCard = document.getElementById('yesterday-promise-card');
+  const promiseTextEl = document.getElementById('yesterday-promise-text');
+  const promiseRememberBtn = document.getElementById('promise-remember-btn');
+
+  const yesterdayReview = state.eveningReviews[yesterdayStr];
+  if (promiseCard && promiseTextEl) {
+    if (yesterdayReview && yesterdayReview.tomorrow && yesterdayReview.tomorrow.trim().length > 0) {
+      promiseTextEl.textContent = `"${yesterdayReview.tomorrow.trim()}"`;
+      promiseCard.style.display = 'block';
+
+      promiseRememberBtn.onclick = () => {
+        triggerHapticFeedback();
+        promiseCard.style.opacity = '0.5';
+        setTimeout(() => promiseCard.style.display = 'none', 300);
+      };
+    } else {
+      promiseCard.style.display = 'none';
+    }
+  }
+
+  // 3. Morning Intention Card
+  const focusInput = document.getElementById('morning-focus-input');
+  const neglectInput = document.getElementById('morning-neglect-input');
+  const saveIntentionBtn = document.getElementById('save-intention-btn');
+
+  const todayIntention = state.morningIntentions[todayStr] || {};
+  if (focusInput && neglectInput) {
+    focusInput.value = todayIntention.focus || '';
+    neglectInput.value = todayIntention.neglect || '';
+
+    saveIntentionBtn.onclick = () => {
+      triggerHapticFeedback();
+      const focusText = focusInput.value.trim();
+      const neglectText = neglectInput.value.trim();
+
+      state.morningIntentions[todayStr] = {
+        focus: focusText,
+        neglect: neglectText,
+        timestamp: new Date().toISOString()
+      };
+      state.saveMorningIntentions();
+      alert('Morning Intention saved for today!');
+    };
+  }
+
+  // 4. Compact Daily Status Bar
+  const habitsChip = document.getElementById('summary-habits-chip');
+  const foodChip = document.getElementById('summary-food-chip');
+  const weightChip = document.getElementById('summary-weight-chip');
+  const reviewChip = document.getElementById('summary-review-chip');
+
+  let doneTodayHabits = 0;
+  state.habits.forEach(h => { if (h.completions.includes(todayStr)) doneTodayHabits++; });
+  const totalHabits = state.habits.length;
+
+  if (habitsChip) {
+    habitsChip.textContent = `✓ ${doneTodayHabits}/${totalHabits} Habits`;
+    if (doneTodayHabits === totalHabits && totalHabits > 0) habitsChip.classList.add('done');
+    else habitsChip.classList.remove('done');
+  }
+
+  const todayMeals = state.foodLogs.filter(f => f.date === todayStr);
+  if (foodChip) {
+    foodChip.textContent = `🍲 ${todayMeals.length} Meals`;
+    if (todayMeals.length > 0) foodChip.classList.add('done');
+    else foodChip.classList.remove('done');
+  }
+
+  const todayWeight = state.weightLogs.find(w => w.date === todayStr);
+  if (weightChip) {
+    if (todayWeight) {
+      weightChip.textContent = `⚖️ ${todayWeight.weight} kg`;
+      weightChip.classList.add('done');
+    } else {
+      weightChip.textContent = `⚖️ Weight Pending`;
+      weightChip.classList.remove('done');
+    }
+  }
+
+  const todayReview = state.eveningReviews[todayStr];
+  if (reviewChip) {
+    if (todayReview) {
+      reviewChip.textContent = `📝 Review Done`;
+      reviewChip.classList.add('done');
+    } else {
+      reviewChip.textContent = `📝 Review Pending`;
+      reviewChip.classList.remove('done');
+    }
+  }
+
+  // 5. Today's Habits Priorities List (Single Source of Truth)
+  const todayHabitsContainer = document.getElementById('today-habits-list');
+  const remainingCountBadge = document.getElementById('today-priorities-count');
+
+  if (todayHabitsContainer) {
+    todayHabitsContainer.innerHTML = '';
+    const remainingCount = totalHabits - doneTodayHabits;
+    if (remainingCountBadge) remainingCountBadge.textContent = `${remainingCount} Remaining`;
+
+    if (totalHabits === 0) {
+      todayHabitsContainer.innerHTML = `<div class="empty-state"><p>No habits created yet. Tap + to add one!</p></div>`;
+    } else {
+      // Sort incomplete habits first, completed recede
+      const sortedHabits = [...state.habits].sort((a, b) => {
+        const aDone = a.completions.includes(todayStr);
+        const bDone = b.completions.includes(todayStr);
+        return aDone === bDone ? 0 : aDone ? 1 : -1;
+      });
+
+      sortedHabits.forEach(habit => {
+        const isDone = habit.completions.includes(todayStr);
+        const item = document.createElement('div');
+        item.className = `today-habit-item ${isDone ? 'completed' : ''}`;
+        item.innerHTML = `
+          <div class="today-habit-left">
+            <span class="today-habit-icon">${habit.icon || '🎯'}</span>
+            <span class="today-habit-name">${habit.name}</span>
+          </div>
+          <button class="today-habit-check-btn" aria-label="Toggle completion">
+            ✓
+          </button>
+        `;
+
+        item.querySelector('.today-habit-check-btn').addEventListener('click', () => {
+          toggleHabitCompletion(habit.id, todayStr);
+          renderTodayView(); // Single source of truth update
+        });
+
+        todayHabitsContainer.appendChild(item);
+      });
+    }
+  }
+
+  // 6. Evening Transition Card
+  const eveningCard = document.getElementById('evening-transition-card');
+  const openReviewBtn = document.getElementById('open-evening-review-btn');
+  if (eveningCard) {
+    if ((hour >= 17 || doneTodayHabits === totalHabits) && !todayReview) {
+      eveningCard.style.display = 'block';
+      openReviewBtn.onclick = () => {
+        // Switch to Stoic tab -> Evening Review subpanel
+        const stoicTab = document.getElementById('nav-stoic-tab');
+        if (stoicTab) stoicTab.click();
+        const reviewSubtab = document.getElementById('stoic-tab-review');
+        if (reviewSubtab) reviewSubtab.click();
+      };
+    } else {
+      eveningCard.style.display = 'none';
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 7. HABIT TRACKER CONTROLLER
 // ---------------------------------------------------------------------------
 
 function calculateStreak(completions, allowGrace = state.settings.streakGraceEnabled) {
@@ -735,6 +922,7 @@ function toggleHabitCompletion(habitId, dateStr = getTodayStr()) {
   }
 
   state.saveHabits();
+  renderTodayView();
   renderHabitsView();
   renderCalendarView();
   checkDaytimeReminderAlert();
@@ -744,6 +932,7 @@ function deleteHabit(habitId) {
   if (confirm('Are you sure you want to delete this habit?')) {
     state.habits = state.habits.filter(h => h.id !== habitId);
     state.saveHabits();
+    renderTodayView();
     renderHabitsView();
     renderCalendarView();
   }
@@ -761,7 +950,7 @@ function setupCategoryChips() {
 }
 
 // ---------------------------------------------------------------------------
-// 7. DAILY FOOD JOURNAL CONTROLLER
+// 8. DAILY FOOD JOURNAL CONTROLLER
 // ---------------------------------------------------------------------------
 
 function renderFoodView() {
@@ -849,6 +1038,7 @@ function deleteFoodLog(foodId) {
   if (confirm('Delete this food entry?')) {
     state.foodLogs = state.foodLogs.filter(f => f.id !== foodId);
     state.saveFoodLogs();
+    renderTodayView();
     renderFoodView();
     renderCalendarView();
   }
@@ -908,6 +1098,7 @@ function setupFoodSection() {
       });
 
       state.saveFoodLogs();
+      renderTodayView();
       renderFoodView();
       renderCalendarView();
 
@@ -918,7 +1109,7 @@ function setupFoodSection() {
 }
 
 // ---------------------------------------------------------------------------
-// 8. WEIGHT TRACKER CONTROLLER
+// 9. WEIGHT TRACKER CONTROLLER
 // ---------------------------------------------------------------------------
 
 let activeRotatorWeight = 74.5;
@@ -1143,13 +1334,14 @@ function deleteWeightLog(logId) {
   if (confirm('Delete this weight entry?')) {
     state.weightLogs = state.weightLogs.filter(l => l.id !== logId);
     state.saveWeightLogs();
+    renderTodayView();
     renderWeightView();
     renderCalendarView();
   }
 }
 
 // ---------------------------------------------------------------------------
-// 9. REAL INTERACTIVE MONTHLY CALENDAR GRID
+// 10. REAL INTERACTIVE MONTHLY CALENDAR GRID
 // ---------------------------------------------------------------------------
 
 function renderCalendarView() {
@@ -1337,7 +1529,7 @@ function setupCalendarControls() {
 }
 
 // ---------------------------------------------------------------------------
-// 10. STOIC REFLECTIONS, EVENING REVIEW & SAVED QUOTES
+// 11. STOIC REFLECTIONS, EVENING REVIEW & SAVED QUOTES
 // ---------------------------------------------------------------------------
 
 let currentQuoteIndex = 0;
@@ -1449,6 +1641,7 @@ function initStoicSection() {
 
     state.eveningReviews[getTodayStr()] = { well, short, tomorrow, timestamp: new Date().toISOString() };
     state.saveEveningReviews();
+    renderTodayView();
     renderCalendarView();
     alert('Evening Stoic Review saved successfully!');
   });
@@ -1477,7 +1670,7 @@ function preloadEveningReview() {
 }
 
 // ---------------------------------------------------------------------------
-// 11. EXECUTIVE INSIGHTS DASHBOARD & SETTINGS/DATA BACKUP
+// 12. EXECUTIVE INSIGHTS DASHBOARD & SETTINGS/DATA BACKUP
 // ---------------------------------------------------------------------------
 
 function renderInsightsDashboard() {
@@ -1546,11 +1739,11 @@ function renderInsightsDashboard() {
 }
 
 // ---------------------------------------------------------------------------
-// 12. P0A-1A DATA BACKUP & DRY-RUN INSPECTOR ENGINE (HARDENED)
+// 13. P0A-1A DATA BACKUP & DRY-RUN INSPECTOR ENGINE (HARDENED)
 // ---------------------------------------------------------------------------
 
 function calculatePayloadRecordCounts(payload) {
-  if (!payload || typeof payload !== 'object') return { habits: 0, completions: 0, weightLogs: 0, foodLogs: 0, eveningReviews: 0, dailyReactions: 0, savedQuotes: 0 };
+  if (!payload || typeof payload !== 'object') return { habits: 0, completions: 0, weightLogs: 0, foodLogs: 0, eveningReviews: 0, morningIntentions: 0, dailyReactions: 0, savedQuotes: 0 };
   
   let completionsCount = 0;
   const habits = Array.isArray(payload.habits) ? payload.habits : [];
@@ -1562,6 +1755,7 @@ function calculatePayloadRecordCounts(payload) {
     weightLogs: Array.isArray(payload.weightLogs) ? payload.weightLogs.length : 0,
     foodLogs: Array.isArray(payload.foodLogs) ? payload.foodLogs.length : 0,
     eveningReviews: typeof payload.eveningReviews === 'object' && payload.eveningReviews !== null ? Object.keys(payload.eveningReviews).length : 0,
+    morningIntentions: typeof payload.morningIntentions === 'object' && payload.morningIntentions !== null ? Object.keys(payload.morningIntentions).length : 0,
     dailyReactions: typeof payload.dailyReactions === 'object' && payload.dailyReactions !== null ? Object.keys(payload.dailyReactions).length : 0,
     savedQuotes: Array.isArray(payload.savedQuotes) ? payload.savedQuotes.length : 0
   };
@@ -1587,6 +1781,7 @@ async function generatePersonalDataBackup() {
     weightGoal: state.weightGoal,
     foodLogs: state.foodLogs,
     eveningReviews: state.eveningReviews,
+    morningIntentions: state.morningIntentions,
     dailyReactions: state.dailyReactions,
     savedQuotes: state.savedQuotes,
     settings: state.settings,
@@ -1642,12 +1837,10 @@ async function validateBackupEnvelope(jsonText) {
     return res;
   }
 
-  // Check Legacy Unversioned Backup vs Formal Schema
   if (backup.schemaVersion === undefined || backup.schemaVersion === null) {
     res.legacyFormat = true;
     res.schemaCompatible = true;
     
-    // Legacy backup payload check
     const legacyPayload = backup.payload || backup;
     if (typeof legacyPayload === 'object' && (legacyPayload.habits || legacyPayload.weightLogs || legacyPayload.foodLogs)) {
       res.structureValid = true;
@@ -1659,7 +1852,6 @@ async function validateBackupEnvelope(jsonText) {
     return res;
   }
 
-  // Formal Schema Validation
   if (typeof backup.schemaVersion !== 'number') {
     res.issues.push('Invalid schemaVersion type.');
   }
@@ -1670,14 +1862,12 @@ async function validateBackupEnvelope(jsonText) {
   }
   res.structureValid = true;
 
-  // Schema Compatibility
   if (backup.schemaVersion <= APP_SCHEMA_VERSION) {
     res.schemaCompatible = true;
   } else {
     res.issues.push(`Incompatible future schema version v${backup.schemaVersion}.`);
   }
 
-  // Calculate & Compare Record Counts
   res.actualCounts = calculatePayloadRecordCounts(backup.payload);
   if (backup.recordCounts && typeof backup.recordCounts === 'object') {
     let countsMatch = true;
@@ -1694,7 +1884,6 @@ async function validateBackupEnvelope(jsonText) {
     res.issues.push('Missing recordCounts inventory.');
   }
 
-  // SHA-256 Integrity Checksum Validation over Envelope
   if (backup.checksum && typeof backup.checksum === 'string') {
     const expectedChecksum = await computeEnvelopeChecksum(backup);
     if (backup.checksum === expectedChecksum) {
@@ -1760,7 +1949,7 @@ async function inspectBackupDryRun(jsonText) {
     }
   }
 
-  const counts = validation.actualCounts || { habits: 0, completions: 0, weightLogs: 0, foodLogs: 0, eveningReviews: 0, dailyReactions: 0, savedQuotes: 0 };
+  const counts = validation.actualCounts || { habits: 0, completions: 0, weightLogs: 0, foodLogs: 0, eveningReviews: 0, morningIntentions: 0, dailyReactions: 0, savedQuotes: 0 };
   const countsMismatchNotice = (!validation.legacyFormat && !validation.recordCountsValid) ? `<div style="grid-column: 1 / -1; color: var(--accent-amber); font-weight: 700; margin-top: 4px;">⚠️ Record Inventory Mismatch Detected</div>` : '';
 
   countsContainer.innerHTML = `
@@ -1769,6 +1958,7 @@ async function inspectBackupDryRun(jsonText) {
     <div><strong>Weight Entries:</strong> ${counts.weightLogs}</div>
     <div><strong>Food Entries:</strong> ${counts.foodLogs}</div>
     <div><strong>Stoic Reviews:</strong> ${counts.eveningReviews}</div>
+    <div><strong>Morning Intentions:</strong> ${counts.morningIntentions || 0}</div>
     <div><strong>Saved Quotes:</strong> ${counts.savedQuotes}</div>
     ${countsMismatchNotice}
   `;
@@ -1808,7 +1998,7 @@ function downloadFile(filename, text, type) {
 }
 
 // ---------------------------------------------------------------------------
-// 13. AUTOMATED DAILY HEALTH CHECK & DIAGNOSTICS LOG
+// 14. AUTOMATED DAILY HEALTH CHECK & DIAGNOSTICS LOG
 // ---------------------------------------------------------------------------
 
 async function runDailyHealthCheck() {
@@ -1859,7 +2049,7 @@ async function runDailyHealthCheck() {
 }
 
 // ---------------------------------------------------------------------------
-// 14. MODAL & NAVIGATION CONTROLLERS
+// 15. MODAL & NAVIGATION CONTROLLERS
 // ---------------------------------------------------------------------------
 
 function setupNavigation() {
@@ -1871,7 +2061,8 @@ function setupNavigation() {
   const headerBtnText = document.getElementById('header-btn-text');
 
   const navMap = {
-    habits: { title: 'Habits', icon: '🌱', showBtn: true, btnText: 'Add Habit' },
+    today: { title: 'Today', icon: '🌱', showBtn: false, btnText: '' },
+    habits: { title: 'Habits', icon: '🎯', showBtn: true, btnText: 'Add Habit' },
     food: { title: 'Food Journal', icon: '🍲', showBtn: true, btnText: 'Log Meal' },
     weight: { title: 'Weight Tracker', icon: '⚖️', showBtn: false, btnText: '' },
     history: { title: 'Calendar History', icon: '📅', showBtn: false, btnText: '' },
@@ -1889,13 +2080,19 @@ function setupNavigation() {
       tabViews.forEach(v => v.classList.remove('active'));
       document.getElementById(`${targetTab}-view`).classList.add('active');
 
-      const config = navMap[targetTab];
+      const config = navMap[targetTab] || navMap.today;
       headerTitle.textContent = config.title;
       headerIcon.textContent = config.icon;
       headerBtn.style.display = config.showBtn ? 'flex' : 'none';
       if (headerBtnText && config.btnText) headerBtnText.textContent = config.btnText;
 
       state.activeTab = targetTab;
+
+      if (targetTab === 'today') renderTodayView();
+      else if (targetTab === 'habits') renderHabitsView();
+      else if (targetTab === 'food') renderFoodView();
+      else if (targetTab === 'weight') renderWeightView();
+      else if (targetTab === 'history') renderCalendarView();
     });
   });
 
@@ -1972,6 +2169,7 @@ function setupModals() {
         completions: []
       });
       state.saveHabits();
+      renderTodayView();
       renderHabitsView();
       renderCalendarView();
       nameInput.value = '';
@@ -1997,6 +2195,7 @@ function setupModals() {
         });
       }
       state.saveWeightLogs();
+      renderTodayView();
       renderWeightView();
       renderCalendarView();
       logWeightModal.classList.remove('active');
@@ -2017,7 +2216,7 @@ function setupModals() {
 }
 
 // ---------------------------------------------------------------------------
-// 15. INITIALIZATION & SERVICE WORKER
+// 16. INITIALIZATION & SERVICE WORKER
 // ---------------------------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -2040,6 +2239,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupModals();
   setupDataExport();
   
+  renderTodayView();
   renderHabitsView();
   renderFoodView();
   renderWeightView();
