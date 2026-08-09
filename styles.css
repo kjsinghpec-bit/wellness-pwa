@@ -534,7 +534,98 @@ body {
   color: var(--accent-rose);
 }
 
-/* Weight Section */
+/* -------------------------------------------------------------
+   DAILY FOOD JOURNAL SECTION (Manual Indian Meal Tracker)
+------------------------------------------------------------- */
+.meal-category-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+.chip-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chip-btn:active {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.food-logs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.food-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: var(--shadow-card);
+}
+
+.food-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.food-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--accent-primary);
+  border: 1px solid var(--border-highlight);
+}
+
+.food-badge.Breakfast { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); border-color: rgba(245, 158, 11, 0.3); }
+.food-badge.Lunch { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); border-color: rgba(16, 185, 129, 0.3); }
+.food-badge.Dinner { background: rgba(168, 85, 247, 0.15); color: var(--accent-purple); border-color: rgba(168, 85, 247, 0.3); }
+
+.food-desc {
+  font-size: 0.98rem;
+  color: var(--text-primary);
+  line-height: 1.45;
+  font-weight: 500;
+}
+
+.history-food-box {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-top: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.history-food-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* -------------------------------------------------------------
+   WEIGHT TRACKER & ROTATOR WHEEL CONTROLS
+------------------------------------------------------------- */
 .weight-stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -646,6 +737,99 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 12px;
   margin-bottom: 20px;
+}
+
+/* Weight Rotator Wheel Layout */
+.weight-rotator-container {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 20px 16px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.rotator-display-box {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.rotator-val {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--accent-primary);
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.rotator-unit {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.rotator-controls-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.rotator-step-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-highlight);
+  color: var(--text-primary);
+  padding: 10px 4px;
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.rotator-step-btn:active {
+  background: var(--accent-primary);
+  color: #fff;
+  transform: scale(0.95);
+}
+
+.rotator-slider-wrapper {
+  position: relative;
+  padding: 0 4px;
+}
+
+.rotator-range {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+}
+
+.rotator-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  border: 3px solid var(--bg-card);
+  box-shadow: 0 0 15px var(--accent-primary);
+  cursor: pointer;
+}
+
+.rotator-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-top: 8px;
 }
 
 .btn-primary {
@@ -825,7 +1009,6 @@ body {
   color: var(--text-primary);
 }
 
-/* Color Coding Badges */
 .cal-day-cell.cal-all {
   background: rgba(16, 185, 129, 0.18);
   border-color: rgba(16, 185, 129, 0.5);
@@ -857,6 +1040,10 @@ body {
   outline: 2px solid var(--accent-primary);
   box-shadow: 0 0 12px var(--accent-primary);
   z-index: 2;
+}
+
+.cal-day-cell.today {
+  border-color: var(--accent-primary);
 }
 
 .cal-day-cell.other-month {
@@ -1109,7 +1296,7 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 6px 10px;
+  padding: 6px 8px;
   border-radius: var(--radius-md);
   font-size: 0.72rem;
   font-weight: 600;

@@ -177,6 +177,7 @@ const STORAGE_KEYS = {
   HABITS: 'wellness_habits_data',
   WEIGHT_LOGS: 'wellness_weight_logs_data',
   WEIGHT_GOAL: 'wellness_weight_goal_data',
+  FOOD_LOGS: 'wellness_food_logs_data',
   SESSION_UNLOCKED: 'wellness_session_unlocked',
   LAST_HEALTH_CHECK: 'wellness_last_health_check_date'
 };
@@ -193,17 +194,14 @@ function getTodayStr() {
   return `${year}-${month}-${day}`;
 }
 
-// Display Date formatted in device's local timezone (e.g. Sun, Aug 9, 2026)
 function formatDateDisplay(dateStr) {
   if (!dateStr) return '';
   const parts = dateStr.split('-').map(Number);
-  // Construct date in local timezone using [year, monthIndex, day]
   const d = new Date(parts[0], parts[1] - 1, parts[2]);
   const options = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
   return d.toLocaleDateString('en-US', options);
 }
 
-// Default Habits matching current real-world date
 const DEFAULT_HABITS = [
   {
     id: 'h1',
@@ -228,10 +226,8 @@ const DEFAULT_HABITS = [
   }
 ];
 
-// Default Weight Logs dynamically mapped relative to current device clock
 function generateDefaultWeightLogs() {
   const today = new Date();
-  
   const d1 = new Date(today); d1.setDate(d1.getDate() - 20);
   const d2 = new Date(today); d2.setDate(d2.getDate() - 13);
   const d3 = new Date(today); d3.setDate(d3.getDate() - 7);
@@ -250,18 +246,35 @@ function generateDefaultWeightLogs() {
 const DEFAULT_WEIGHT_LOGS = generateDefaultWeightLogs();
 const DEFAULT_GOAL = 70.0;
 
+const DEFAULT_FOOD_LOGS = [
+  {
+    id: 'f1',
+    date: getTodayStr(),
+    mealType: 'Lunch',
+    description: '2 Chapati, Dal Tadka, Bhindi Sabzi, Curd & Cucumber Salad',
+    timestamp: '13:30'
+  },
+  {
+    id: 'f2',
+    date: getTodayStr(),
+    mealType: 'Snack / Tea',
+    description: 'Masala Tea & 2 Marie Biscuits',
+    timestamp: '17:00'
+  }
+];
+
 class AppState {
   constructor() {
     this.habits = this.load(STORAGE_KEYS.HABITS, DEFAULT_HABITS);
     this.weightLogs = this.load(STORAGE_KEYS.WEIGHT_LOGS, DEFAULT_WEIGHT_LOGS);
     this.weightGoal = this.load(STORAGE_KEYS.WEIGHT_GOAL, DEFAULT_GOAL);
+    this.foodLogs = this.load(STORAGE_KEYS.FOOD_LOGS, DEFAULT_FOOD_LOGS);
     this.activeTab = 'habits';
     
-    // Always initialize selected history date & calendar to device's real-world current date
     const today = new Date();
     this.selectedHistoryDate = getTodayStr();
     this.calendarYear = today.getFullYear();
-    this.calendarMonth = today.getMonth(); // 0-indexed month
+    this.calendarMonth = today.getMonth();
   }
 
   load(key, fallback) {
@@ -282,18 +295,16 @@ class AppState {
     }
   }
 
-  saveHabits() {
-    this.save(STORAGE_KEYS.HABITS, this.habits);
-  }
+  saveHabits() { this.save(STORAGE_KEYS.HABITS, this.habits); }
 
   saveWeightLogs() {
     this.weightLogs.sort((a, b) => new Date(a.date) - new Date(b.date));
     this.save(STORAGE_KEYS.WEIGHT_LOGS, this.weightLogs);
   }
 
-  saveWeightGoal() {
-    this.save(STORAGE_KEYS.WEIGHT_GOAL, this.weightGoal);
-  }
+  saveWeightGoal() { this.save(STORAGE_KEYS.WEIGHT_GOAL, this.weightGoal); }
+
+  saveFoodLogs() { this.save(STORAGE_KEYS.FOOD_LOGS, this.foodLogs); }
 
   async syncToCloud() {
     try {
@@ -301,6 +312,7 @@ class AppState {
         habits: this.habits,
         weightLogs: this.weightLogs,
         weightGoal: this.weightGoal,
+        foodLogs: this.foodLogs,
         updatedAt: new Date().toISOString()
       };
       fetch(CLOUD_SYNC_ENDPOINT, {
@@ -320,12 +332,15 @@ class AppState {
           this.habits = record.habits;
           this.weightLogs = record.weightLogs || [];
           this.weightGoal = record.weightGoal || DEFAULT_GOAL;
+          this.foodLogs = record.foodLogs || [];
           
           localStorage.setItem(STORAGE_KEYS.HABITS, JSON.stringify(this.habits));
           localStorage.setItem(STORAGE_KEYS.WEIGHT_LOGS, JSON.stringify(this.weightLogs));
           localStorage.setItem(STORAGE_KEYS.WEIGHT_GOAL, JSON.stringify(this.weightGoal));
+          localStorage.setItem(STORAGE_KEYS.FOOD_LOGS, JSON.stringify(this.foodLogs));
 
           renderHabitsView();
+          renderFoodView();
           renderWeightView();
           renderCalendarView();
         }
@@ -596,8 +611,134 @@ function deleteHabit(habitId) {
 }
 
 // ---------------------------------------------------------------------------
-// 6. WEIGHT TRACKER CONTROLLER (in kg)
+// 6. DAILY FOOD JOURNAL CONTROLLER (Manual Indian Meals)
 // ---------------------------------------------------------------------------
+
+function renderFoodView() {
+  const foodListContainer = document.getElementById('food-logs-list');
+  const subtitle = document.getElementById('food-subtitle');
+
+  const todayStr = getTodayStr();
+  const todayFood = state.foodLogs.filter(f => f.date === todayStr);
+
+  foodListContainer.innerHTML = '';
+  subtitle.textContent = `${todayFood.length} meal ${todayFood.length === 1 ? 'entry' : 'entries'} logged for today`;
+
+  if (todayFood.length === 0) {
+    foodListContainer.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">🍲</div>
+        <p>No meals logged today yet. Tap <strong>+ Log Meal</strong> above to record your food!</p>
+      </div>
+    `;
+    return;
+  }
+
+  todayFood.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'food-card';
+    card.innerHTML = `
+      <div class="food-card-header">
+        <span class="food-badge ${item.mealType.replace(/\s+/g, '')}">${item.mealType}</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 0.75rem; color: var(--text-muted);">${item.timestamp || ''}</span>
+          <button class="delete-btn" data-food-id="${item.id}">Delete</button>
+        </div>
+      </div>
+      <div class="food-desc">${item.description}</div>
+    `;
+
+    card.querySelector('.delete-btn').addEventListener('click', () => {
+      deleteFoodLog(item.id);
+    });
+
+    foodListContainer.appendChild(card);
+  });
+}
+
+function deleteFoodLog(foodId) {
+  if (confirm('Delete this food entry?')) {
+    state.foodLogs = state.foodLogs.filter(f => f.id !== foodId);
+    state.saveFoodLogs();
+    renderFoodView();
+    renderCalendarView();
+  }
+}
+
+function setupFoodSection() {
+  document.getElementById('open-food-modal-btn').addEventListener('click', () => {
+    document.getElementById('food-date-input').value = getTodayStr();
+    document.getElementById('log-food-modal').classList.add('active');
+  });
+
+  document.querySelectorAll('.chip-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const meal = btn.getAttribute('data-meal');
+      document.getElementById('food-meal-type').value = meal;
+      document.getElementById('food-date-input').value = getTodayStr();
+      document.getElementById('log-food-modal').classList.add('active');
+    });
+  });
+
+  document.getElementById('log-food-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const mealType = document.getElementById('food-meal-type').value;
+    const desc = document.getElementById('food-desc-input').value.trim();
+    const dateVal = document.getElementById('food-date-input').value;
+
+    if (desc && dateVal) {
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+      state.foodLogs.push({
+        id: 'f_' + Date.now(),
+        date: dateVal,
+        mealType: mealType,
+        description: desc,
+        timestamp: timeStr
+      });
+
+      state.saveFoodLogs();
+      renderFoodView();
+      renderCalendarView();
+
+      document.getElementById('food-desc-input').value = '';
+      document.getElementById('log-food-modal').classList.remove('active');
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 7. WEIGHT TRACKER & WEIGHT ROTATOR WHEEL (Updates all 3 Stat Boxes)
+// ---------------------------------------------------------------------------
+
+let activeRotatorWeight = 74.5;
+
+function setupWeightRotator() {
+  const valDisplay = document.getElementById('rotator-weight-val');
+  const rangeSlider = document.getElementById('weight-rotator-slider');
+
+  function updateRotatorDisplay(newVal) {
+    activeRotatorWeight = Math.round(newVal * 10) / 10;
+    valDisplay.textContent = activeRotatorWeight.toFixed(1);
+    rangeSlider.value = activeRotatorWeight;
+  }
+
+  // Get current weight to initialize rotator
+  if (state.weightLogs.length > 0) {
+    activeRotatorWeight = state.weightLogs[state.weightLogs.length - 1].weight;
+  }
+  updateRotatorDisplay(activeRotatorWeight);
+
+  rangeSlider.addEventListener('input', (e) => {
+    updateRotatorDisplay(parseFloat(e.target.value));
+  });
+
+  document.getElementById('rot-minus-1').addEventListener('click', () => updateRotatorDisplay(activeRotatorWeight - 1.0));
+  document.getElementById('rot-minus-01').addEventListener('click', () => updateRotatorDisplay(activeRotatorWeight - 0.1));
+  document.getElementById('rot-plus-01').addEventListener('click', () => updateRotatorDisplay(activeRotatorWeight + 0.1));
+  document.getElementById('rot-plus-1').addEventListener('click', () => updateRotatorDisplay(activeRotatorWeight + 1.0));
+}
 
 function renderWeightView() {
   const logs = state.weightLogs;
@@ -610,6 +751,7 @@ function renderWeightView() {
   const progressBar = document.getElementById('progress-bar-fill');
   const logsList = document.getElementById('logs-list');
 
+  // UPDATE ALL 3 STAT BOXES
   statGoal.textContent = goal ? `${goal} kg` : '--';
 
   if (logs.length === 0) {
@@ -620,7 +762,7 @@ function renderWeightView() {
     logsList.innerHTML = `
       <div class="empty-state">
         <div class="empty-state-icon">⚖️</div>
-        <p>No weight logs yet. Tap <strong>Log Weight</strong> to record your weight in kg!</p>
+        <p>No weight logs yet. Tap <strong>Log Weight Rotator</strong> to record your weight in kg!</p>
       </div>
     `;
     renderWeightChart([]);
@@ -631,13 +773,16 @@ function renderWeightView() {
   const firstLog = logs[0];
   const currentWeight = latestLog.weight;
 
+  // Box 1: Current Weight
   statCurrent.textContent = `${currentWeight} kg`;
 
+  // Box 3: Net Change from Initial Entry
   const diff = currentWeight - firstLog.weight;
   const diffFormatted = (diff >= 0 ? '+' : '') + diff.toFixed(1) + ' kg';
   statChange.textContent = diffFormatted;
   statChange.className = `stat-card-value ${diff <= 0 ? 'emerald' : 'amber'}`;
 
+  // Progress Bar
   if (goal && firstLog.weight !== goal) {
     const totalDist = Math.abs(firstLog.weight - goal);
     const coveredDist = Math.abs(firstLog.weight - currentWeight);
@@ -751,7 +896,7 @@ function deleteWeightLog(logId) {
 }
 
 // ---------------------------------------------------------------------------
-// 7. ACCURATE REAL-WORLD DEVICE CLOCK CALENDAR GRID & PAST DATE EDITOR
+// 8. REAL INTERACTIVE MONTHLY CALENDAR GRID & PAST DATE INSPECTOR
 // ---------------------------------------------------------------------------
 
 function renderCalendarView() {
@@ -760,6 +905,7 @@ function renderCalendarView() {
   const selectedDateLabel = document.getElementById('history-selected-date-label');
   const daySummaryBadge = document.getElementById('history-day-summary-badge');
   const weightValBox = document.getElementById('history-weight-val');
+  const foodListContainer = document.getElementById('history-food-list');
   const habitsListContainer = document.getElementById('history-habits-list');
 
   const year = state.calendarYear;
@@ -824,6 +970,7 @@ function renderCalendarView() {
   const selectedDate = state.selectedHistoryDate || todayStr;
   selectedDateLabel.textContent = formatDateDisplay(selectedDate);
 
+  // 1. Weight on selected date
   const weightLog = state.weightLogs.find(w => w.date === selectedDate);
   if (weightLog) {
     weightValBox.textContent = `${weightLog.weight} kg`;
@@ -833,6 +980,25 @@ function renderCalendarView() {
     weightValBox.style.color = 'var(--text-muted)';
   }
 
+  // 2. Food eaten on selected date
+  const foodLogOnDate = state.foodLogs.filter(f => f.date === selectedDate);
+  foodListContainer.innerHTML = '';
+  if (foodLogOnDate.length === 0) {
+    foodListContainer.innerHTML = `<div style="font-size: 0.85rem; color: var(--text-muted);">No meals recorded for this date</div>`;
+  } else {
+    foodLogOnDate.forEach(f => {
+      const item = document.createElement('div');
+      item.style.padding = '6px 0';
+      item.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+      item.innerHTML = `
+        <span class="food-badge ${f.mealType.replace(/\s+/g, '')}">${f.mealType}</span>
+        <span style="font-size: 0.9rem; color: var(--text-primary); margin-left: 8px;">${f.description}</span>
+      `;
+      foodListContainer.appendChild(item);
+    });
+  }
+
+  // 3. Habits completed on selected date
   habitsListContainer.innerHTML = '';
   if (state.habits.length === 0) {
     habitsListContainer.innerHTML = `<div class="empty-state">No habits created yet.</div>`;
@@ -893,7 +1059,7 @@ function setupCalendarControls() {
 }
 
 // ---------------------------------------------------------------------------
-// 8. STOIC REFLECTIONS CONTROLLER
+// 9. STOIC REFLECTIONS CONTROLLER
 // ---------------------------------------------------------------------------
 
 let currentQuoteIndex = 0;
@@ -942,7 +1108,7 @@ function initStoicSection() {
 }
 
 // ---------------------------------------------------------------------------
-// 9. AUTOMATED DAILY HEALTH CHECK
+// 10. AUTOMATED DAILY HEALTH CHECK
 // ---------------------------------------------------------------------------
 
 async function runDailyHealthCheck() {
@@ -980,7 +1146,7 @@ async function runDailyHealthCheck() {
 }
 
 // ---------------------------------------------------------------------------
-// 10. MODAL & NAVIGATION CONTROLLERS
+// 11. MODAL & NAVIGATION CONTROLLERS
 // ---------------------------------------------------------------------------
 
 function setupNavigation() {
@@ -989,12 +1155,14 @@ function setupNavigation() {
   const headerTitle = document.getElementById('header-title');
   const headerIcon = document.getElementById('header-brand-icon');
   const headerBtn = document.getElementById('header-action-btn');
+  const headerBtnText = document.getElementById('header-btn-text');
 
   const navMap = {
-    habits: { title: 'Habits', icon: '🌱', showBtn: true },
-    weight: { title: 'Weight Tracker', icon: '⚖️', showBtn: false },
-    history: { title: 'Calendar History', icon: '📅', showBtn: false },
-    stoic: { title: 'Stoic Mind', icon: '🏛️', showBtn: false }
+    habits: { title: 'Habits', icon: '🌱', showBtn: true, btnText: 'Add Habit' },
+    food: { title: 'Food Journal', icon: '🍲', showBtn: true, btnText: 'Log Meal' },
+    weight: { title: 'Weight Tracker', icon: '⚖️', showBtn: false, btnText: '' },
+    history: { title: 'Calendar History', icon: '📅', showBtn: false, btnText: '' },
+    stoic: { title: 'Stoic Mind', icon: '🏛️', showBtn: false, btnText: '' }
   };
 
   navTabs.forEach(tab => {
@@ -1011,12 +1179,12 @@ function setupNavigation() {
       headerTitle.textContent = config.title;
       headerIcon.textContent = config.icon;
       headerBtn.style.display = config.showBtn ? 'flex' : 'none';
+      if (headerBtnText && config.btnText) headerBtnText.textContent = config.btnText;
 
       state.activeTab = targetTab;
     });
   });
 
-  // Accurate Header Date formatted in device's local timezone
   document.getElementById('header-date').textContent = formatDateDisplay(getTodayStr());
 }
 
@@ -1024,9 +1192,15 @@ function setupModals() {
   const addHabitModal = document.getElementById('add-habit-modal');
   const logWeightModal = document.getElementById('log-weight-modal');
   const setGoalModal = document.getElementById('set-goal-modal');
+  const logFoodModal = document.getElementById('log-food-modal');
 
   document.getElementById('header-action-btn').addEventListener('click', () => {
-    addHabitModal.classList.add('active');
+    if (state.activeTab === 'food') {
+      document.getElementById('food-date-input').value = getTodayStr();
+      logFoodModal.classList.add('active');
+    } else {
+      addHabitModal.classList.add('active');
+    }
   });
 
   document.getElementById('log-weight-btn').addEventListener('click', () => {
@@ -1077,9 +1251,10 @@ function setupModals() {
     }
   });
 
+  // SUBMIT WEIGHT FROM ROTATOR WHEEL & UPDATE ALL 3 STAT BOXES
   document.getElementById('log-weight-form').addEventListener('submit', (e) => {
     e.preventDefault();
-    const weightVal = parseFloat(document.getElementById('weight-input').value);
+    const weightVal = activeRotatorWeight;
     const dateVal = document.getElementById('weight-date-input').value;
 
     if (weightVal && dateVal) {
@@ -1096,7 +1271,6 @@ function setupModals() {
       state.saveWeightLogs();
       renderWeightView();
       renderCalendarView();
-      document.getElementById('weight-input').value = '';
       logWeightModal.classList.remove('active');
     }
   });
@@ -1114,16 +1288,19 @@ function setupModals() {
 }
 
 // ---------------------------------------------------------------------------
-// 11. INITIALIZATION & SERVICE WORKER
+// 12. INITIALIZATION & SERVICE WORKER
 // ---------------------------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
   setupPasscodeLock();
   setupNavigation();
+  setupFoodSection();
+  setupWeightRotator();
   setupCalendarControls();
   setupModals();
   
   renderHabitsView();
+  renderFoodView();
   renderWeightView();
   renderCalendarView();
   initStoicSection();
