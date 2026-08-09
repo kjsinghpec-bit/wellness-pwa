@@ -108,13 +108,24 @@
       </div>
     </div>
 
-    <!-- MINIMUM COMPLETE PROMPT -->
+    <!-- MINIMUM ELAPSED CONFIRMATION PROMPT -->
     <div id="timer-minimum-complete-box" class="timer-complete-box" style="display: none;">
-      <div class="complete-title">Minimum complete ✓</div>
-      <div class="complete-subtitle">Starting counts! You maintained your streak. Continue or finish?</div>
-      <div style="display: flex; gap: 8px; margin-top: 8px;">
-        <button class="btn-primary" id="timer-continue-btn" style="flex: 1; padding: 8px; font-size: 0.8rem;">Continue toward ideal</button>
-        <button class="btn-secondary" id="timer-finish-here-btn" style="flex: 1; padding: 8px; font-size: 0.8rem;">Finish here</button>
+      <div id="timer-confirm-step">
+        <div class="complete-title" style="color: var(--accent-amber);">Minimum time reached</div>
+        <div class="complete-subtitle">Did you actually do it?</div>
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <button class="btn-primary" id="timer-yes-done-btn" style="flex: 1; padding: 8px; font-size: 0.8rem; background: linear-gradient(135deg, var(--accent-emerald), #059669);">Yes, minimum done</button>
+          <button class="btn-secondary" id="timer-not-this-time-btn" style="flex: 1; padding: 8px; font-size: 0.8rem;">Not this time</button>
+        </div>
+      </div>
+
+      <div id="timer-options-step" style="display: none;">
+        <div class="complete-title" style="color: var(--accent-emerald);">Minimum complete ✓</div>
+        <div class="complete-subtitle">Starting counts! You maintained your streak. Continue or finish?</div>
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <button class="btn-primary" id="timer-continue-btn" style="flex: 1; padding: 8px; font-size: 0.8rem;">Continue toward ideal</button>
+          <button class="btn-secondary" id="timer-finish-here-btn" style="flex: 1; padding: 8px; font-size: 0.8rem;">Finish here</button>
+        </div>
       </div>
     </div>
   </div>

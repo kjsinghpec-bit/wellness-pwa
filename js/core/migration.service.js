@@ -3,8 +3,8 @@
 (function (global) {
   'use strict';
 
-  const APP_SCHEMA_VERSION = 1;
-  const APP_VERSION = "2.1.0";
+  const APP_SCHEMA_VERSION = 2;
+  const APP_VERSION = "2.2.0";
 
   const SCHEMA_METADATA_KEY = 'wellness_schema_metadata';
   const RECOVERY_SNAPSHOT_KEY = 'wellness_migration_recovery_snapshot';
@@ -39,7 +39,6 @@
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     }
-    // Node.js fallback for testing
     if (typeof require !== 'undefined') {
       const nodeCrypto = require('crypto');
       return nodeCrypto.createHash('sha256').update(str).digest('hex');
@@ -61,7 +60,45 @@
 
   // Registry for sequential migration transformers (e.g. 1 -> 2, 2 -> 3)
   const MIGRATION_REGISTRY = {
-    // 1: async (clonedPayload) => { transform... return clonedPayload; }
+    1: async (snapshotData) => {
+      const habitsRaw = snapshotData['wellness_habits_data'];
+      if (!habitsRaw) return snapshotData;
+
+      let habits = [];
+      try {
+        habits = JSON.parse(habitsRaw);
+      } catch (e) {
+        return snapshotData;
+      }
+
+      if (!Array.isArray(habits)) return snapshotData;
+
+      const transformedHabits = habits.map((habit, habitIdx) => {
+        const h = { ...habit };
+        if (h.activationModeEnabled === undefined) h.activationModeEnabled = false;
+        if (!h.minimumCompletions) h.minimumCompletions = [];
+        
+        if (!h.completionRecords) {
+          h.completionRecords = [];
+          if (Array.isArray(h.completions)) {
+            h.completions.forEach((dateStr, idx) => {
+              const isMin = h.minimumCompletions.includes(dateStr);
+              h.completionRecords.push({
+                id: 'rec_v1_' + (h.id || habitIdx) + '_' + idx + '_' + Date.now(),
+                habitId: h.id || ('h_' + habitIdx),
+                localDate: dateStr,
+                completionLevel: isMin ? 'minimum' : 'legacy_complete',
+                completedAt: dateStr + 'T12:00:00.000Z'
+              });
+            });
+          }
+        }
+        return h;
+      });
+
+      snapshotData['wellness_habits_data'] = JSON.stringify(transformedHabits);
+      return snapshotData;
+    }
   };
 
   class MigrationService {

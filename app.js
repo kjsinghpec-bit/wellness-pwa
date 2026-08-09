@@ -1,4 +1,4 @@
-/* Wellness PWA Main Application Script - v2.2.0 (P1-2 Just Start Minimum Viable Habit System) */
+/* Wellness PWA Main Application Script - v2.2.0 (P1-2 Just Start System - Final Pass) */
 
 // ---------------------------------------------------------------------------
 // 1. STOIC QUOTES DATASET
@@ -163,9 +163,16 @@ const STOIC_QUOTES = [
 // ---------------------------------------------------------------------------
 // 2. CONSTANTS, SCHEMA VERSION & UTILITIES
 // ---------------------------------------------------------------------------
-const APP_SCHEMA_VERSION = 1;
+const APP_SCHEMA_VERSION = 2; // Incremented for P1-2 completionRecords & activation fields
 const APP_VERSION = "2.2.0";
 const TARGET_PASSCODE_HASH = "434f4d14c1eb231306b51aaa160c021b63670ac6ca67fb8e403f4500983dd1e4";
+
+function generateRecordId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    try { return crypto.randomUUID(); } catch (e) {}
+  }
+  return 'rec_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
 
 async function sha256Hex(str) {
   const msgBuffer = new TextEncoder().encode(str);
@@ -242,7 +249,7 @@ const DEFAULT_HABITS = [
     activationModeEnabled: false,
     completions: [getTodayStr()],
     minimumCompletions: [],
-    completionRecords: [{ localDate: getTodayStr(), completionLevel: 'legacy_complete' }]
+    completionRecords: [{ id: generateRecordId(), habitId: 'h1', localDate: getTodayStr(), completionLevel: 'legacy_complete' }]
   },
   {
     id: 'h2',
@@ -253,7 +260,7 @@ const DEFAULT_HABITS = [
     activationModeEnabled: false,
     completions: [getTodayStr()],
     minimumCompletions: [],
-    completionRecords: [{ localDate: getTodayStr(), completionLevel: 'legacy_complete' }]
+    completionRecords: [{ id: generateRecordId(), habitId: 'h2', localDate: getTodayStr(), completionLevel: 'legacy_complete' }]
   },
   {
     id: 'h3',
@@ -342,9 +349,24 @@ class AppState {
   constructor() {
     this.habits = this.load(STORAGE_KEYS.HABITS, DEFAULT_HABITS);
     // Backward compatibility normalization
-    this.habits.forEach(h => {
+    this.habits.forEach((h, idx) => {
+      if (h.activationModeEnabled === undefined) h.activationModeEnabled = false;
       if (!h.minimumCompletions) h.minimumCompletions = [];
-      if (!h.completionRecords) h.completionRecords = [];
+      if (!h.completionRecords) {
+        h.completionRecords = [];
+        if (Array.isArray(h.completions)) {
+          h.completions.forEach((dateStr, cIdx) => {
+            const isMin = h.minimumCompletions.includes(dateStr);
+            h.completionRecords.push({
+              id: 'rec_init_' + (h.id || idx) + '_' + cIdx,
+              habitId: h.id || ('h_' + idx),
+              localDate: dateStr,
+              completionLevel: isMin ? 'minimum' : 'legacy_complete',
+              completedAt: dateStr + 'T12:00:00.000Z'
+            });
+          });
+        }
+      }
     });
 
     this.weightLogs = this.load(STORAGE_KEYS.WEIGHT_LOGS, generateDefaultWeightLogs());
@@ -532,7 +554,7 @@ function setupPasscodeLock() {
 }
 
 // ---------------------------------------------------------------------------
-// 5. ESCALATING STREAK TOAST & ACTIVATION TIMER ENGINE (P1-2)
+// 5. ESCALATING STREAK TOAST & ACTIVATION TIMER ENGINE (P1-2 FINAL PASS)
 // ---------------------------------------------------------------------------
 function checkStreakMilestone(habitName, streak) {
   if (streak === 7) {
@@ -555,7 +577,7 @@ function showMilestoneToast(title, desc, icon = '🎉') {
   setTimeout(() => toast.classList.remove('show'), 4500);
 }
 
-// --- P1-2 TIMER ENGINE WITH REAL TIMESTAMP ELAPSED TIME ---
+// --- P1-2 TIMER ENGINE WITH REAL TIMESTAMP ELAPSED TIME & EXPLICIT CONFIRMATION ---
 let activeTimerInterval = null;
 
 function getStoredTimerState() {
@@ -636,8 +658,17 @@ function initTimerEngine() {
   if (pauseBtn) pauseBtn.textContent = timerState.state === 'paused' ? 'Resume' : 'Pause';
 
   const minCompleteBox = document.getElementById('timer-minimum-complete-box');
-  if (minCompleteBox) {
-    minCompleteBox.style.display = timerState.state === 'completed_minimum' ? 'block' : 'none';
+  const confirmStep = document.getElementById('timer-confirm-step');
+  const optionsStep = document.getElementById('timer-options-step');
+
+  if (minCompleteBox && confirmStep && optionsStep) {
+    if (timerState.state === 'completed_minimum') {
+      minCompleteBox.style.display = 'block';
+      confirmStep.style.display = 'block';
+      optionsStep.style.display = 'none';
+    } else {
+      minCompleteBox.style.display = 'none';
+    }
   }
 
   updateTimerTick();
@@ -669,16 +700,45 @@ function updateTimerTick() {
   const countdownEl = document.getElementById('timer-countdown-display');
   if (countdownEl) countdownEl.textContent = displayStr;
 
+  // CORRECTION 1: Timer elapse MUST NOT automatically record completion!
   if (remainingMs <= 0 && timerState.state === 'running') {
     timerState.state = 'completed_minimum';
     saveTimerState(timerState);
     triggerHapticFeedback();
 
-    toggleHabitCompletion(timerState.habitId, timerState.startDate, timerState.targetLevel);
-
+    // Show prompt: "Minimum time reached. Did you actually do it?"
     const minCompleteBox = document.getElementById('timer-minimum-complete-box');
-    if (minCompleteBox) minCompleteBox.style.display = 'block';
+    const confirmStep = document.getElementById('timer-confirm-step');
+    const optionsStep = document.getElementById('timer-options-step');
+    if (minCompleteBox && confirmStep && optionsStep) {
+      minCompleteBox.style.display = 'block';
+      confirmStep.style.display = 'block';
+      optionsStep.style.display = 'none';
+    }
   }
+}
+
+function confirmYesMinimumDone() {
+  triggerHapticFeedback();
+  const timerState = getStoredTimerState();
+  if (!timerState) return;
+
+  // Record completion only after explicit user confirmation!
+  toggleHabitCompletion(timerState.habitId, timerState.startDate, timerState.targetLevel || 'minimum');
+
+  const confirmStep = document.getElementById('timer-confirm-step');
+  const optionsStep = document.getElementById('timer-options-step');
+  if (confirmStep && optionsStep) {
+    confirmStep.style.display = 'none';
+    optionsStep.style.display = 'block';
+  }
+}
+
+function confirmNotThisTime() {
+  triggerHapticFeedback();
+  cancelTimer();
+  renderTodayView();
+  renderHabitsView();
 }
 
 function pauseOrResumeTimer() {
@@ -778,7 +838,7 @@ function setupReminderBanner() {
 }
 
 // ---------------------------------------------------------------------------
-// 6. P1-1 UNIFIED TODAY VIEW CONTROLLER (WITH P1-2 JUST START SYSTEM)
+// 6. P1-1 UNIFIED TODAY VIEW CONTROLLER (WITH P1-2 JUST START INTEGRATION)
 // ---------------------------------------------------------------------------
 
 function getHabitCompletionLevel(habit, dateStr) {
@@ -904,7 +964,7 @@ function renderTodayView() {
     }
   }
 
-  // 4. "Still worth doing today" Habits List (P1-2 Just Start Priority CTAs)
+  // 4. "Still worth doing today" Habits List (P1-2 Just Start Integration)
   const todayHabitsContainer = document.getElementById('today-habits-list');
   const remainingCountBadge = document.getElementById('today-priorities-count');
 
@@ -944,7 +1004,7 @@ function renderTodayView() {
               <span class="today-habit-icon">${habit.icon || '🎯'}</span>
               <div>
                 <div class="today-habit-name">${habit.name}</div>
-                <div style="font-size: 0.72rem; color: var(--text-muted);">Ideal: ${idealLabel} · Minimum: ${minLabel}</div>
+                <div style="font-size: 0.72rem; color: var(--text-muted);">Ideal ${idealLabel} · Minimum ${minLabel}</div>
               </div>
             </div>
             <button class="today-start-btn" style="background: linear-gradient(135deg, var(--accent-amber), #d97706); color: #000000; border: none; padding: 6px 14px; border-radius: var(--radius-full); font-size: 0.78rem; font-weight: 800; cursor: pointer;">
@@ -957,7 +1017,7 @@ function renderTodayView() {
             startActivationTimer(habit.id, 'minimum');
           });
         } else if (isActivationEnabled && level === 'minimum') {
-          // Minimum Complete: Options to Continue toward ideal or check off
+          // Minimum Complete: Options to Continue toward ideal
           item.innerHTML = `
             <div class="today-habit-left">
               <span class="today-habit-icon">${habit.icon || '🎯'}</span>
@@ -968,7 +1028,7 @@ function renderTodayView() {
             </div>
             <div style="display: flex; align-items: center; gap: 6px;">
               <button class="today-continue-btn" style="background: rgba(56, 189, 248, 0.12); color: var(--accent-primary); border: 1px solid var(--border-highlight); padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 700; cursor: pointer;">
-                Continue
+                Continue toward ideal
               </button>
               <button class="today-habit-check-btn" aria-label="Toggle completion">✓</button>
             </div>
@@ -1047,7 +1107,7 @@ function renderTodayView() {
 }
 
 // ---------------------------------------------------------------------------
-// 7. HABIT TRACKER CONTROLLER (P1-2 COMPLETION LEVEL ARCHITECTURE)
+// 7. HABIT TRACKER CONTROLLER (STABLE COMPLETION RECORD IDENTITIES)
 // ---------------------------------------------------------------------------
 
 function calculateStreak(completions, allowGrace = state.settings.streakGraceEnabled) {
@@ -1254,13 +1314,13 @@ function toggleHabitCompletion(habitId, dateStr = getTodayStr(), level = null) {
   const recordIdx = habit.completionRecords.findIndex(r => r.localDate === dateStr);
 
   if (idx > -1 && level === null) {
-    // Toggling OFF when already complete
+    // Toggling OFF when already completed
     habit.completions.splice(idx, 1);
     if (recordIdx > -1) habit.completionRecords.splice(recordIdx, 1);
     const minIdx = habit.minimumCompletions.indexOf(dateStr);
     if (minIdx > -1) habit.minimumCompletions.splice(minIdx, 1);
   } else {
-    // Marking complete or updating level
+    // Marking complete or updating level explicitly with STABLE IDENTITIES
     const targetLevel = level || (habit.activationModeEnabled ? 'ideal' : 'ideal');
 
     if (idx === -1) habit.completions.push(dateStr);
@@ -1272,9 +1332,14 @@ function toggleHabitCompletion(habitId, dateStr = getTodayStr(), level = null) {
       if (minIdx > -1) habit.minimumCompletions.splice(minIdx, 1);
     }
 
+    const existingId = (recordIdx > -1 && habit.completionRecords[recordIdx].id) ? habit.completionRecords[recordIdx].id : generateRecordId();
+
     const newRecord = {
+      id: existingId,
+      habitId: habit.id,
       localDate: dateStr,
       completionLevel: targetLevel,
+      startedAt: new Date().toISOString(),
       completedAt: new Date().toISOString()
     };
 
@@ -2147,6 +2212,7 @@ async function computeEnvelopeChecksum(envelope) {
 }
 
 async function generatePersonalDataBackup() {
+  // Note: ACTIVE_TIMER (wellness_active_timer_data) is transient runtime state and is EXCLUDED from long-term personal data backups to prevent restoring stale timers months later.
   const payload = {
     habits: state.habits,
     weightLogs: state.weightLogs,
@@ -2491,11 +2557,15 @@ function setupModals() {
   // Activation Timer Event Listeners
   const pauseBtn = document.getElementById('timer-pause-btn');
   const cancelBtn = document.getElementById('timer-cancel-btn');
+  const yesDoneBtn = document.getElementById('timer-yes-done-btn');
+  const notThisTimeBtn = document.getElementById('timer-not-this-time-btn');
   const continueBtn = document.getElementById('timer-continue-btn');
   const finishBtn = document.getElementById('timer-finish-here-btn');
 
   if (pauseBtn) pauseBtn.addEventListener('click', pauseOrResumeTimer);
   if (cancelBtn) cancelBtn.addEventListener('click', cancelTimer);
+  if (yesDoneBtn) yesDoneBtn.addEventListener('click', confirmYesMinimumDone);
+  if (notThisTimeBtn) notThisTimeBtn.addEventListener('click', confirmNotThisTime);
   if (continueBtn) continueBtn.addEventListener('click', continueToIdealTimer);
   if (finishBtn) finishBtn.addEventListener('click', finishTimerHere);
 

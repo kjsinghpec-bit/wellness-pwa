@@ -48,13 +48,13 @@ function populateInitialUserData() {
 mockStorage.clear();
 const freshMeta = migrationSvc.initSchemaMetadata();
 console.log('\n--- 1. Fresh App Metadata Initialization ---');
-console.log('Result:', freshMeta.schemaVersion === 1 && freshMeta.migrationState === 'idle' ? '✓ PASSED' : 'FAILED');
+console.log('Result:', freshMeta.schemaVersion === APP_SCHEMA_VERSION && freshMeta.migrationState === 'idle' ? '✓ PASSED' : 'FAILED');
 
 // 2. Existing v1 user data with no metadata
 populateInitialUserData();
 const legacyMeta = migrationSvc.initSchemaMetadata();
 console.log('\n--- 2. Existing v1 Data Metadata Creation ---');
-console.log('Result:', legacyMeta.schemaVersion === 1 && mockStorage.getItem('wellness_habits_data') !== null ? '✓ PASSED' : 'FAILED');
+console.log('Result:', legacyMeta.schemaVersion === APP_SCHEMA_VERSION && mockStorage.getItem('wellness_habits_data') !== null ? '✓ PASSED' : 'FAILED');
 
 // 3. Metadata initialization without changing user data
 populateInitialUserData();
@@ -78,25 +78,25 @@ console.log('Result:', userSnapshotBefore === userSnapshotAfter ? '✓ PASSED (U
   console.log('\n--- 4. Unsupported Future Schema Dry-Run ---');
   console.log('Result:', !dryFuture.dryRunPassed && dryFuture.errors.length > 0 ? '✓ PASSED (FUTURE SCHEMA REJECTED)' : 'FAILED');
 
-  // 5. Valid migration dry-run (Register dummy v1 -> v2)
-  MIGRATION_REGISTRY[1] = async (payload) => {
+  // 5. Valid migration dry-run (Register dummy v2 -> v3)
+  MIGRATION_REGISTRY[2] = async (payload) => {
     return payload; // identity transformer
   };
-  const dryValid = await migrationSvc.runMigrationDryRun(2);
+  const dryValid = await migrationSvc.runMigrationDryRun(3);
   console.log('\n--- 5. Valid Migration Dry-Run Simulation ---');
   console.log('Result:', dryValid.dryRunPassed && dryValid.expectedChanges.length > 0 ? '✓ PASSED' : 'FAILED');
 
   // 6. Dry-run storage non-mutation
   const storeBeforeDry = JSON.stringify(mockStorage.store);
-  await migrationSvc.runMigrationDryRun(2);
+  await migrationSvc.runMigrationDryRun(3);
   const storeAfterDry = JSON.stringify(mockStorage.store);
   console.log('\n--- 6. Dry-Run Storage Non-Mutation Assertion ---');
   console.log('Result:', storeBeforeDry === storeAfterDry ? '✓ PASSED (ZERO MUTATIONS)' : 'FAILED');
 
-  // 7. Sequential migration registry behavior (v1 -> v2 -> v3)
-  MIGRATION_REGISTRY[2] = async (payload) => payload;
-  const drySeq = await migrationSvc.runMigrationDryRun(3);
-  console.log('\n--- 7. Sequential Migration Behavior (v1->v2->v3) ---');
+  // 7. Sequential migration registry behavior (v2 -> v3 -> v4)
+  MIGRATION_REGISTRY[3] = async (payload) => payload;
+  const drySeq = await migrationSvc.runMigrationDryRun(4);
+  console.log('\n--- 7. Sequential Migration Behavior (v2->v3->v4) ---');
   console.log('Result:', drySeq.dryRunPassed && drySeq.expectedChanges.length === 2 ? '✓ PASSED' : 'FAILED');
 
   // 8. Interrupted migration recovery
@@ -105,7 +105,7 @@ console.log('Result:', userSnapshotBefore === userSnapshotAfter ? '✓ PASSED (U
   migrationSvc.setMetadata(metaInterrupted);
   
   // Create valid recovery snapshot
-  await migrationSvc.createRecoverySnapshot(1, 2);
+  await migrationSvc.createRecoverySnapshot(APP_SCHEMA_VERSION, APP_SCHEMA_VERSION + 1);
 
   const startupRecovery = await migrationSvc.handleStartupRecovery();
   console.log('\n--- 8. Interrupted Migration Startup Recovery ---');
@@ -114,16 +114,16 @@ console.log('Result:', userSnapshotBefore === userSnapshotAfter ? '✓ PASSED (U
   // 9. Migration exception & auto-rollback
   populateInitialUserData();
   migrationSvc.initSchemaMetadata();
-  delete MIGRATION_REGISTRY[1]; // Remove v1 handler to trigger exception
-  const execFail = await migrationSvc.executeMigration(2);
+  delete MIGRATION_REGISTRY[APP_SCHEMA_VERSION]; // Remove active handler to trigger exception
+  const execFail = await migrationSvc.executeMigration(APP_SCHEMA_VERSION + 1);
   console.log('\n--- 9. Migration Exception & Auto-Rollback ---');
   console.log('Result:', !execFail.success && execFail.rolledBack ? '✓ PASSED (AUTO-ROLLED BACK)' : 'FAILED');
 
   // 10. Successful rollback
-  MIGRATION_REGISTRY[1] = async (payload) => payload;
+  MIGRATION_REGISTRY[APP_SCHEMA_VERSION] = async (payload) => payload;
   populateInitialUserData();
   migrationSvc.initSchemaMetadata();
-  const snap = await migrationSvc.createRecoverySnapshot(1, 2);
+  const snap = await migrationSvc.createRecoverySnapshot(APP_SCHEMA_VERSION, APP_SCHEMA_VERSION + 1);
   mockStorage.setItem('wellness_habits_data', 'CORRUPTED_TEMP');
   const rbResult = await migrationSvc.rollback(snap);
   console.log('\n--- 10. Successful Snapshot Rollback ---');
@@ -139,17 +139,19 @@ console.log('Result:', userSnapshotBefore === userSnapshotAfter ? '✓ PASSED (U
   // 12. Idempotent rerun
   populateInitialUserData();
   migrationSvc.initSchemaMetadata();
-  const exec1 = await migrationSvc.executeMigration(2);
-  const dataAfter1 = mockStorage.getItem('wellness_habits_data');
-  const exec2 = await migrationSvc.executeMigration(2); // Rerun
-  const dataAfter2 = mockStorage.getItem('wellness_habits_data');
+  const run1 = await migrationSvc.executeMigration(APP_SCHEMA_VERSION + 1);
+  const run2 = await migrationSvc.executeMigration(APP_SCHEMA_VERSION + 1);
   console.log('\n--- 12. Idempotent Rerun Execution ---');
-  console.log('Result:', exec1.success && exec2.success && dataAfter1 === dataAfter2 ? '✓ PASSED' : 'FAILED');
+  console.log('Result:', run1.success && run2.success && run2.message === 'Already up to date.' ? '✓ PASSED' : 'FAILED');
 
-  // 13. Existing recovery snapshot handling
-  const rawSnap = mockStorage.getItem(RECOVERY_SNAPSHOT_KEY);
+  // 13. Existing recovery snapshot key respect
+  populateInitialUserData();
+  migrationSvc.initSchemaMetadata();
+  MIGRATION_REGISTRY[APP_SCHEMA_VERSION] = async (payload) => payload;
+  await migrationSvc.createRecoverySnapshot(APP_SCHEMA_VERSION, APP_SCHEMA_VERSION + 1);
+  const execSnapCheck = await migrationSvc.executeMigration(APP_SCHEMA_VERSION + 1);
   console.log('\n--- 13. Existing Recovery Snapshot Key Respect ---');
-  console.log('Result:', rawSnap !== null ? '✓ PASSED' : 'FAILED');
+  console.log('Result:', execSnapCheck.success ? '✓ PASSED' : 'FAILED');
 
   // 14. Corrupt recovery snapshot handling
   mockStorage.setItem(RECOVERY_SNAPSHOT_KEY, '{ invalid json snap ');
@@ -158,18 +160,19 @@ console.log('Result:', userSnapshotBefore === userSnapshotAfter ? '✓ PASSED (U
   console.log('Result:', !snapVal.valid ? '✓ PASSED' : 'FAILED');
 
   // 15. Unknown migration path
+  delete MIGRATION_REGISTRY[APP_SCHEMA_VERSION];
   delete MIGRATION_REGISTRY[2];
-  const execUnknown = await migrationSvc.executeMigration(3);
+  const execUnknown = await migrationSvc.executeMigration(99);
   console.log('\n--- 15. Unknown Migration Path Handling ---');
   console.log('Result:', !execUnknown.success ? '✓ PASSED' : 'FAILED');
 
   // 16. App startup after completed migration
   populateInitialUserData();
-  MIGRATION_REGISTRY[1] = async (payload) => payload;
-  await migrationSvc.executeMigration(2);
+  MIGRATION_REGISTRY[APP_SCHEMA_VERSION] = async (payload) => payload;
+  await migrationSvc.executeMigration(APP_SCHEMA_VERSION + 1);
   const startupPost = await migrationSvc.handleStartupRecovery();
   console.log('\n--- 16. App Startup After Completed Migration ---');
-  console.log('Result:', startupPost.status === 'ok' && startupPost.schemaVersion === 2 ? '✓ PASSED' : 'FAILED');
+  console.log('Result:', startupPost.status === 'ok' && startupPost.schemaVersion === APP_SCHEMA_VERSION + 1 ? '✓ PASSED' : 'FAILED');
 
   // 17. Unicode & English/Emoji Data Preservation
   const unicodeSample = "Morning Run 🏃 Café & Tea ☕ - 'Role Model'";
