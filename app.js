@@ -582,7 +582,7 @@ function renderTodayView() {
     dateEl.textContent = formatDateDisplay(todayStr);
   }
 
-  // 2. Yesterday's Promise Card
+  // 2. Compact Yesterday's Promise Card
   const promiseCard = document.getElementById('yesterday-promise-card');
   const promiseTextEl = document.getElementById('yesterday-promise-text');
   const promiseRememberBtn = document.getElementById('promise-remember-btn');
@@ -595,28 +595,57 @@ function renderTodayView() {
 
       promiseRememberBtn.onclick = () => {
         triggerHapticFeedback();
-        promiseCard.style.opacity = '0.5';
-        setTimeout(() => promiseCard.style.display = 'none', 300);
+        promiseCard.style.opacity = '0.4';
+        setTimeout(() => promiseCard.style.display = 'none', 250);
       };
     } else {
       promiseCard.style.display = 'none';
     }
   }
 
-  // 3. Morning Intention Card
+  // 3. Morning Intention (Empty vs Saved States)
+  const editStateBox = document.getElementById('intention-edit-state');
+  const savedStateBox = document.getElementById('intention-saved-state');
   const focusInput = document.getElementById('morning-focus-input');
   const neglectInput = document.getElementById('morning-neglect-input');
   const saveIntentionBtn = document.getElementById('save-intention-btn');
+  const editIntentionBtn = document.getElementById('edit-intention-btn');
+  const savedFocusText = document.getElementById('intention-saved-focus-text');
+  const savedNeglectText = document.getElementById('intention-saved-neglect-text');
 
   const todayIntention = state.morningIntentions[todayStr] || {};
+
+  function updateIntentionStateUI() {
+    if (todayIntention && todayIntention.focus && todayIntention.focus.trim().length > 0) {
+      editStateBox.style.display = 'none';
+      savedStateBox.style.display = 'block';
+      savedFocusText.textContent = todayIntention.focus;
+
+      if (todayIntention.neglect && todayIntention.neglect.trim().length > 0) {
+        savedNeglectText.textContent = `Must not neglect: ${todayIntention.neglect}`;
+        savedNeglectText.style.display = 'block';
+      } else {
+        savedNeglectText.style.display = 'none';
+      }
+    } else {
+      editStateBox.style.display = 'block';
+      savedStateBox.style.display = 'none';
+      if (focusInput) focusInput.value = '';
+      if (neglectInput) neglectInput.value = '';
+    }
+  }
+
   if (focusInput && neglectInput) {
     focusInput.value = todayIntention.focus || '';
     neglectInput.value = todayIntention.neglect || '';
+    updateIntentionStateUI();
 
     saveIntentionBtn.onclick = () => {
       triggerHapticFeedback();
       const focusText = focusInput.value.trim();
       const neglectText = neglectInput.value.trim();
+
+      if (!focusText) return;
 
       state.morningIntentions[todayStr] = {
         focus: focusText,
@@ -624,68 +653,38 @@ function renderTodayView() {
         timestamp: new Date().toISOString()
       };
       state.saveMorningIntentions();
-      alert('Morning Intention saved for today!');
+      todayIntention.focus = focusText;
+      todayIntention.neglect = neglectText;
+      updateIntentionStateUI();
     };
+
+    if (editIntentionBtn) {
+      editIntentionBtn.onclick = () => {
+        triggerHapticFeedback();
+        editStateBox.style.display = 'block';
+        savedStateBox.style.display = 'none';
+        focusInput.value = todayIntention.focus || '';
+        neglectInput.value = todayIntention.neglect || '';
+      };
+    }
   }
 
-  // 4. Compact Daily Status Bar
-  const habitsChip = document.getElementById('summary-habits-chip');
-  const foodChip = document.getElementById('summary-food-chip');
-  const weightChip = document.getElementById('summary-weight-chip');
-  const reviewChip = document.getElementById('summary-review-chip');
+  // 4. "Still worth doing today" Habits List (Single Source of Truth)
+  const todayHabitsContainer = document.getElementById('today-habits-list');
+  const remainingCountBadge = document.getElementById('today-priorities-count');
 
   let doneTodayHabits = 0;
   state.habits.forEach(h => { if (h.completions.includes(todayStr)) doneTodayHabits++; });
   const totalHabits = state.habits.length;
 
-  if (habitsChip) {
-    habitsChip.textContent = `✓ ${doneTodayHabits}/${totalHabits} Habits`;
-    if (doneTodayHabits === totalHabits && totalHabits > 0) habitsChip.classList.add('done');
-    else habitsChip.classList.remove('done');
-  }
-
-  const todayMeals = state.foodLogs.filter(f => f.date === todayStr);
-  if (foodChip) {
-    foodChip.textContent = `🍲 ${todayMeals.length} Meals`;
-    if (todayMeals.length > 0) foodChip.classList.add('done');
-    else foodChip.classList.remove('done');
-  }
-
-  const todayWeight = state.weightLogs.find(w => w.date === todayStr);
-  if (weightChip) {
-    if (todayWeight) {
-      weightChip.textContent = `⚖️ ${todayWeight.weight} kg`;
-      weightChip.classList.add('done');
-    } else {
-      weightChip.textContent = `⚖️ Weight Pending`;
-      weightChip.classList.remove('done');
-    }
-  }
-
-  const todayReview = state.eveningReviews[todayStr];
-  if (reviewChip) {
-    if (todayReview) {
-      reviewChip.textContent = `📝 Review Done`;
-      reviewChip.classList.add('done');
-    } else {
-      reviewChip.textContent = `📝 Review Pending`;
-      reviewChip.classList.remove('done');
-    }
-  }
-
-  // 5. Today's Habits Priorities List (Single Source of Truth)
-  const todayHabitsContainer = document.getElementById('today-habits-list');
-  const remainingCountBadge = document.getElementById('today-priorities-count');
-
   if (todayHabitsContainer) {
     todayHabitsContainer.innerHTML = '';
     const remainingCount = totalHabits - doneTodayHabits;
-    if (remainingCountBadge) remainingCountBadge.textContent = `${remainingCount} Remaining`;
+    if (remainingCountBadge) remainingCountBadge.textContent = `${remainingCount} remaining`;
 
     if (totalHabits === 0) {
-      todayHabitsContainer.innerHTML = `<div class="empty-state"><p>No habits created yet. Tap + to add one!</p></div>`;
+      todayHabitsContainer.innerHTML = `<div class="empty-state"><p>No habits created yet. Tap <strong>Habits</strong> below to add your routines!</p></div>`;
     } else {
-      // Sort incomplete habits first, completed recede
       const sortedHabits = [...state.habits].sort((a, b) => {
         const aDone = a.completions.includes(todayStr);
         const bDone = b.completions.includes(todayStr);
@@ -708,7 +707,7 @@ function renderTodayView() {
 
         item.querySelector('.today-habit-check-btn').addEventListener('click', () => {
           toggleHabitCompletion(habit.id, todayStr);
-          renderTodayView(); // Single source of truth update
+          renderTodayView();
         });
 
         todayHabitsContainer.appendChild(item);
@@ -716,14 +715,30 @@ function renderTodayView() {
     }
   }
 
-  // 6. Evening Transition Card
+  // 5. Compact "Today at a glance" 1-line Summary
+  const glanceTextEl = document.getElementById('glance-summary-text');
+  if (glanceTextEl) {
+    const todayMealsCount = state.foodLogs.filter(f => f.date === todayStr).length;
+    const todayWeight = state.weightLogs.find(w => w.date === todayStr);
+    const todayReview = state.eveningReviews[todayStr];
+
+    const habitStr = `${doneTodayHabits} of ${totalHabits} essentials`;
+    const mealStr = todayMealsCount > 0 ? `${todayMealsCount} ${todayMealsCount === 1 ? 'meal' : 'meals'}` : `Meals not logged`;
+    const weightStr = todayWeight ? `Weight ${todayWeight.weight} kg ✓` : `Weight pending`;
+    const reviewStr = todayReview ? `Review done ✓` : `Evening review open`;
+
+    glanceTextEl.textContent = `${habitStr} · ${mealStr} · ${weightStr} · ${reviewStr}`;
+  }
+
+  // 6. Time-Aware Evening Review Prompt
   const eveningCard = document.getElementById('evening-transition-card');
   const openReviewBtn = document.getElementById('open-evening-review-btn');
+  const todayReview = state.eveningReviews[todayStr];
+
   if (eveningCard) {
     if ((hour >= 17 || doneTodayHabits === totalHabits) && !todayReview) {
       eveningCard.style.display = 'block';
       openReviewBtn.onclick = () => {
-        // Switch to Stoic tab -> Evening Review subpanel
         const stoicTab = document.getElementById('nav-stoic-tab');
         if (stoicTab) stoicTab.click();
         const reviewSubtab = document.getElementById('stoic-tab-review');

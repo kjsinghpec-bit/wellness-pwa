@@ -125,60 +125,74 @@
         <div class="today-date-subtitle" id="today-date-subtitle">Sunday, 9 August</div>
       </div>
 
-      <!-- 2. Yesterday's Promise Card (Rendered only if yesterday review.tomorrow has text) -->
-      <div class="yesterday-promise-card" id="yesterday-promise-card" style="display: none;">
+      <!-- 2. Yesterday's Promise Card (Compact - Only rendered if yesterday review.tomorrow has text) -->
+      <div class="yesterday-promise-card compact" id="yesterday-promise-card" style="display: none;">
         <div class="promise-header">
-          <span class="promise-icon">📜</span>
-          <span class="promise-label">You told yourself yesterday</span>
+          <div>
+            <span class="promise-icon">📜</span>
+            <span class="promise-label">You told yourself yesterday</span>
+          </div>
+          <button class="promise-action-btn" id="promise-remember-btn">✓ Remembered</button>
         </div>
         <blockquote class="promise-text" id="yesterday-promise-text">
           "Protect the evening and don't carry office work into family time."
         </blockquote>
-        <button class="promise-action-btn" id="promise-remember-btn">✓ Mark as Remembered</button>
       </div>
 
-      <!-- 3. Morning Intention Card -->
-      <div class="morning-intention-card">
-        <div class="intention-header">
-          <span class="intention-icon">🌅</span>
-          <span class="intention-title">Morning Intention</span>
+      <!-- 3. Morning Intention Card (Empty & Saved States) -->
+      <div class="morning-intention-card" id="morning-intention-card">
+        <!-- EDIT STATE -->
+        <div id="intention-edit-state">
+          <div class="intention-header">
+            <span class="intention-icon">🌅</span>
+            <span class="intention-title">What matters most today?</span>
+          </div>
+          <div class="form-group" style="margin-top: 10px; margin-bottom: 8px;">
+            <input type="text" id="morning-focus-input" class="form-input" placeholder="e.g. Finish important office work calmly & protect family time tonight...">
+          </div>
+          <div class="form-group" style="margin-bottom: 8px;">
+            <input type="text" id="morning-neglect-input" class="form-input" placeholder="One thing I must not neglect (optional)">
+          </div>
+          <button class="btn-secondary" id="save-intention-btn" style="width: 100%; padding: 8px; font-size: 0.85rem;">Save Intention</button>
         </div>
-        <div class="form-group" style="margin-top: 10px; margin-bottom: 8px;">
-          <label class="form-label">What matters most today?</label>
-          <input type="text" id="morning-focus-input" class="form-input" placeholder="e.g. Finish important work calmly & protect family time tonight...">
+
+        <!-- SAVED STATE -->
+        <div id="intention-saved-state" style="display: none;">
+          <div class="intention-saved-header">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span class="intention-icon">🌅</span>
+              <span class="intention-title">What matters most today</span>
+            </div>
+            <button class="btn-secondary" id="edit-intention-btn" style="padding: 4px 10px; font-size: 0.75rem;">Edit</button>
+          </div>
+          <div class="intention-saved-focus" id="intention-saved-focus-text">--</div>
+          <div class="intention-saved-neglect" id="intention-saved-neglect-text" style="display: none;">--</div>
         </div>
-        <div class="form-group" style="margin-bottom: 8px;">
-          <label class="form-label">One thing I must not neglect (Optional)</label>
-          <input type="text" id="morning-neglect-input" class="form-input" placeholder="e.g. Call wife, 500ml water...">
-        </div>
-        <button class="btn-secondary" id="save-intention-btn" style="width: 100%; padding: 8px; font-size: 0.85rem;">Save Intention</button>
       </div>
 
-      <!-- 4. Compact Daily Overview Summary -->
-      <div class="today-summary-bar" id="today-summary-bar">
-        <div class="summary-chip" id="summary-habits-chip">✓ 0/0 Habits</div>
-        <div class="summary-chip" id="summary-food-chip">🍲 0 Meals</div>
-        <div class="summary-chip" id="summary-weight-chip">⚖️ Weight Pending</div>
-        <div class="summary-chip" id="summary-review-chip">📝 Review Pending</div>
-      </div>
-
-      <!-- 5. Today's Habits Checklist (Single Source of Truth) -->
+      <!-- 4. Section Title: Still worth doing today -->
       <div class="today-section-title">
-        <span>Today's Priorities</span>
+        <span>Still worth doing today</span>
         <span class="today-habits-count-badge" id="today-priorities-count">0 Remaining</span>
       </div>
       <div class="today-habits-list" id="today-habits-list">
-        <!-- Dynamic Incomplete + Completed Habit Items Rendered Here -->
+        <!-- Dynamic Unfinished + Completed Habit Items Rendered Here -->
       </div>
 
-      <!-- 6. Evening Transition Entry Point -->
+      <!-- 5. Compact "Today at a glance" Summary Line -->
+      <div class="today-at-a-glance-bar" id="today-at-a-glance-bar">
+        <span class="glance-label">Today at a glance:</span>
+        <span class="glance-text" id="glance-summary-text">Loading daily summary...</span>
+      </div>
+
+      <!-- 6. Time-Aware Evening Review Prompt -->
       <div class="evening-transition-card" id="evening-transition-card" style="display: none;">
         <div style="display: flex; align-items: center; justify-content: space-between;">
           <div>
-            <div style="font-weight: 700; color: var(--text-primary);">🌙 Ready to review today?</div>
+            <div style="font-weight: 700; color: var(--text-primary);">🌙 Ready to close the day?</div>
             <div style="font-size: 0.78rem; color: var(--text-muted);">Reflect on your virtues and lessons before sleep</div>
           </div>
-          <button class="btn-primary" id="open-evening-review-btn" style="padding: 8px 14px; font-size: 0.85rem;">Reflect Now</button>
+          <button class="btn-primary" id="open-evening-review-btn" style="padding: 8px 14px; font-size: 0.85rem;">Evening Review</button>
         </div>
       </div>
 
@@ -494,7 +508,7 @@
 
   </main>
 
-  <!-- Bottom Navigation Bar -->
+  <!-- Bottom Navigation Bar (Single Primary Navigation) -->
   <nav class="bottom-nav">
     <button class="nav-tab active" data-tab="today" id="nav-today-tab">
       <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
