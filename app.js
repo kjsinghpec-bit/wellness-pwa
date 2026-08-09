@@ -163,6 +163,7 @@ const STOIC_QUOTES = [
 // ---------------------------------------------------------------------------
 // 2. SECURE PASSCODE HASH SECURITY & CLOUD DATABASE ENGINE
 // ---------------------------------------------------------------------------
+// SHA-256 Hash of Passcode "1727"
 const TARGET_PASSCODE_HASH = "434f4d14c1eb231306b51aaa160c021b63670ac6ca67fb8e403f4500983dd1e4";
 
 async function sha256Hex(str) {
@@ -194,38 +195,40 @@ function formatDateDisplay(dateStr) {
   return d.toLocaleDateString('en-US', options);
 }
 
+// Default Habits including Call Wife reminder every 3 hrs during active hours
 const DEFAULT_HABITS = [
   {
     id: 'h1',
+    name: 'Call Wife 📞 (Every 3 hrs active)',
+    icon: '📞',
+    createdAt: getTodayStr(),
+    completions: [getTodayStr()]
+  },
+  {
+    id: 'h2',
     name: 'Morning Hydration (500ml)',
     icon: '💧',
     createdAt: getTodayStr(),
     completions: [getTodayStr()]
   },
   {
-    id: 'h2',
+    id: 'h3',
     name: '30 Min Workout / Walk',
     icon: '🏃',
     createdAt: getTodayStr(),
     completions: []
-  },
-  {
-    id: 'h3',
-    name: '10 Min Stoic Reading',
-    icon: '📚',
-    createdAt: getTodayStr(),
-    completions: [getTodayStr()]
   }
 ];
 
+// Default Weight Logs in Kilograms (kg)
 const DEFAULT_WEIGHT_LOGS = [
-  { id: 'w1', weight: 175.0, date: '2026-07-20' },
-  { id: 'w2', weight: 173.8, date: '2026-07-27' },
-  { id: 'w3', weight: 172.5, date: '2026-08-02' },
-  { id: 'w4', weight: 171.2, date: '2026-08-09' }
+  { id: 'w1', weight: 76.5, date: '2026-07-20' },
+  { id: 'w2', weight: 75.8, date: '2026-07-27' },
+  { id: 'w3', weight: 75.0, date: '2026-08-02' },
+  { id: 'w4', weight: 74.2, date: '2026-08-09' }
 ];
 
-const DEFAULT_GOAL = 165.0;
+const DEFAULT_GOAL = 70.0;
 
 class AppState {
   constructor() {
@@ -234,6 +237,11 @@ class AppState {
     this.weightGoal = this.load(STORAGE_KEYS.WEIGHT_GOAL, DEFAULT_GOAL);
     this.activeTab = 'habits';
     this.selectedHistoryDate = getTodayStr();
+    
+    // Calendar month tracking
+    const today = new Date();
+    this.calendarYear = today.getFullYear();
+    this.calendarMonth = today.getMonth(); // 0-indexed
   }
 
   load(key, fallback) {
@@ -299,7 +307,7 @@ class AppState {
 
           renderHabitsView();
           renderWeightView();
-          renderHistoryView();
+          renderCalendarView();
         }
       }
     } catch (e) {}
@@ -309,7 +317,7 @@ class AppState {
 const state = new AppState();
 
 // ---------------------------------------------------------------------------
-// 3. SECURE PASSCODE UI CONTROLLER
+// 3. SECURE PASSCODE AUTO-LOCK ON APP LAUNCH
 // ---------------------------------------------------------------------------
 let currentPinInput = "";
 
@@ -319,6 +327,7 @@ function setupPasscodeLock() {
   const errorContainer = document.getElementById('passcode-error');
   const lockBtn = document.getElementById('header-lock-btn');
 
+  // ALWAYS prompt for passcode on fresh page load or when not unlocked
   const isUnlocked = sessionStorage.getItem(STORAGE_KEYS.SESSION_UNLOCKED) === 'true';
 
   if (isUnlocked) {
@@ -389,7 +398,28 @@ function setupPasscodeLock() {
 }
 
 // ---------------------------------------------------------------------------
-// 4. HABIT TRACKER CONTROLLER
+// 4. STREAK MILESTONE CELEBRATION TOAST
+// ---------------------------------------------------------------------------
+function checkStreakMilestone(habitName, streak) {
+  const milestoneList = [7, 14, 21, 30, 50, 100, 365];
+  if (milestoneList.includes(streak)) {
+    showMilestoneToast(`🔥 ${streak}-Day Streak Achieved!`, `Awesome job! You hit ${streak} days in a row on "${habitName}".`);
+  }
+}
+
+function showMilestoneToast(title, desc) {
+  const toast = document.getElementById('milestone-toast');
+  document.getElementById('milestone-title').textContent = title;
+  document.getElementById('milestone-desc').textContent = desc;
+
+  toast.classList.add('show');
+  setTimeout(() => {
+    toast.classList.remove('show');
+  }, 4000);
+}
+
+// ---------------------------------------------------------------------------
+// 5. HABIT TRACKER CONTROLLER
 // ---------------------------------------------------------------------------
 
 function calculateStreak(completions) {
@@ -504,7 +534,7 @@ function renderHabitsView() {
     `;
 
     card.querySelector('.habit-toggle-btn').addEventListener('click', () => {
-      toggleHabitCompletion(habit.id);
+      toggleHabitCompletion(habit.id, todayStr);
     });
 
     card.querySelector('.delete-btn').addEventListener('click', () => {
@@ -518,22 +548,23 @@ function renderHabitsView() {
   habitsSubtitle.textContent = `${doneTodayCount} of ${state.habits.length} completed for today`;
 }
 
-function toggleHabitCompletion(habitId) {
+function toggleHabitCompletion(habitId, dateStr = getTodayStr()) {
   const habit = state.habits.find(h => h.id === habitId);
   if (!habit) return;
 
-  const todayStr = getTodayStr();
-  const idx = habit.completions.indexOf(todayStr);
+  const idx = habit.completions.indexOf(dateStr);
 
   if (idx > -1) {
     habit.completions.splice(idx, 1);
   } else {
-    habit.completions.push(todayStr);
+    habit.completions.push(dateStr);
+    const newStreak = calculateStreak(habit.completions);
+    checkStreakMilestone(habit.name, newStreak);
   }
 
   state.saveHabits();
   renderHabitsView();
-  renderHistoryView();
+  renderCalendarView();
 }
 
 function deleteHabit(habitId) {
@@ -541,12 +572,12 @@ function deleteHabit(habitId) {
     state.habits = state.habits.filter(h => h.id !== habitId);
     state.saveHabits();
     renderHabitsView();
-    renderHistoryView();
+    renderCalendarView();
   }
 }
 
 // ---------------------------------------------------------------------------
-// 5. WEIGHT TRACKER CONTROLLER
+// 6. WEIGHT TRACKER CONTROLLER (in kg)
 // ---------------------------------------------------------------------------
 
 function renderWeightView() {
@@ -560,7 +591,7 @@ function renderWeightView() {
   const progressBar = document.getElementById('progress-bar-fill');
   const logsList = document.getElementById('logs-list');
 
-  statGoal.textContent = goal ? `${goal} lbs` : '--';
+  statGoal.textContent = goal ? `${goal} kg` : '--';
 
   if (logs.length === 0) {
     statCurrent.textContent = '--';
@@ -570,7 +601,7 @@ function renderWeightView() {
     logsList.innerHTML = `
       <div class="empty-state">
         <div class="empty-state-icon">⚖️</div>
-        <p>No weight logs yet. Tap <strong>Log Weight</strong> to record your weight!</p>
+        <p>No weight logs yet. Tap <strong>Log Weight</strong> to record your weight in kg!</p>
       </div>
     `;
     renderWeightChart([]);
@@ -581,10 +612,10 @@ function renderWeightView() {
   const firstLog = logs[0];
   const currentWeight = latestLog.weight;
 
-  statCurrent.textContent = `${currentWeight} lbs`;
+  statCurrent.textContent = `${currentWeight} kg`;
 
   const diff = currentWeight - firstLog.weight;
-  const diffFormatted = (diff >= 0 ? '+' : '') + diff.toFixed(1) + ' lbs';
+  const diffFormatted = (diff >= 0 ? '+' : '') + diff.toFixed(1) + ' kg';
   statChange.textContent = diffFormatted;
   statChange.className = `stat-card-value ${diff <= 0 ? 'emerald' : 'amber'}`;
 
@@ -615,8 +646,8 @@ function renderWeightView() {
         <div class="log-date">${formatDateDisplay(log.date)}</div>
       </div>
       <div style="display: flex; align-items: center; gap: 12px;">
-        <span class="log-weight">${log.weight} lbs</span>
-        <button class="delete-btn" data-log-id="${log.id}">&times;</button>
+        <span class="log-weight">${log.weight} kg</span>
+        <button class="delete-btn" data-log-id="${log.id}">Delete</button>
       </div>
     `;
     item.querySelector('.delete-btn').addEventListener('click', () => {
@@ -631,7 +662,7 @@ function renderWeightChart(logs) {
   if (!logs || logs.length < 2) {
     container.innerHTML = `
       <div style="height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.85rem;">
-        Log at least 2 entries to see your trend graph
+        Log at least 2 entries to see your trend graph (kg)
       </div>
     `;
     return;
@@ -642,8 +673,8 @@ function renderWeightChart(logs) {
   const padding = 25;
 
   const weights = logs.map(l => l.weight);
-  const minW = Math.min(...weights) - 2;
-  const maxW = Math.max(...weights) + 2;
+  const minW = Math.min(...weights) - 1.5;
+  const maxW = Math.max(...weights) + 1.5;
 
   const rangeY = maxW - minW || 1;
 
@@ -661,7 +692,7 @@ function renderWeightChart(logs) {
 
   const circlesHtml = points.map(p => `
     <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4.5" fill="#38bdf8" stroke="#0b0f19" stroke-width="2"/>
-    <text x="${p.x.toFixed(1)}" y="${(p.y - 10).toFixed(1)}" text-anchor="middle" fill="#94a3b8" font-size="10" font-weight="600">${p.weight}</text>
+    <text x="${p.x.toFixed(1)}" y="${(p.y - 10).toFixed(1)}" text-anchor="middle" fill="#94a3b8" font-size="10" font-weight="600">${p.weight}k</text>
   `).join('');
 
   const firstDate = formatDateDisplay(logs[0].date).split(',')[0];
@@ -696,44 +727,103 @@ function deleteWeightLog(logId) {
     state.weightLogs = state.weightLogs.filter(l => l.id !== logId);
     state.saveWeightLogs();
     renderWeightView();
-    renderHistoryView();
+    renderCalendarView();
   }
 }
 
 // ---------------------------------------------------------------------------
-// 6. FULL HISTORY VIEW CONTROLLER (Database-backed lifetime inspection)
+// 7. REAL INTERACTIVE MONTHLY CALENDAR GRID & PAST DATE EDITOR
 // ---------------------------------------------------------------------------
 
-function renderHistoryView() {
-  const datePicker = document.getElementById('history-date-picker');
+function renderCalendarView() {
+  const monthTitle = document.getElementById('cal-month-title');
+  const daysGrid = document.getElementById('calendar-days-grid');
   const selectedDateLabel = document.getElementById('history-selected-date-label');
   const daySummaryBadge = document.getElementById('history-day-summary-badge');
   const weightValBox = document.getElementById('history-weight-val');
   const habitsListContainer = document.getElementById('history-habits-list');
-  const totalDaysPill = document.getElementById('history-total-days-pill');
 
+  const year = state.calendarYear;
+  const month = state.calendarMonth;
+
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  monthTitle.textContent = `${monthNames[month]} ${year}`;
+
+  daysGrid.innerHTML = '';
+
+  // Get first day of month (0 = Sun, 1 = Mon...)
+  const firstDayObj = new Date(year, month, 1);
+  let startingDayOfWeek = firstDayObj.getDay(); // 0 is Sun
+  // Convert so Monday is 0
+  startingDayOfWeek = (startingDayOfWeek === 0) ? 6 : startingDayOfWeek - 1;
+
+  const totalDaysInMonth = new Date(year, month + 1, 0).getDate();
+
+  // Render empty leading cells
+  for (let i = 0; i < startingDayOfWeek; i++) {
+    const emptyCell = document.createElement('div');
+    emptyCell.className = 'cal-day-cell other-month';
+    daysGrid.appendChild(emptyCell);
+  }
+
+  // Render month days
+  const totalHabitsCount = state.habits.length;
+
+  for (let day = 1; day <= totalDaysInMonth; day++) {
+    const monthStr = String(month + 1).padStart(2, '0');
+    const dayStr = String(day).padStart(2, '0');
+    const dateStr = `${year}-${monthStr}-${dayStr}`;
+
+    // Count habits completed on dateStr
+    let doneCount = 0;
+    state.habits.forEach(h => {
+      if (h.completions.includes(dateStr)) doneCount++;
+    });
+
+    // Color Coding Classification:
+    // Green (cal-all): All habits completed
+    // Yellow (cal-some): Partial habits completed
+    // Red (cal-none): Zero habits completed
+    let colorClass = 'cal-none';
+    if (totalHabitsCount > 0) {
+      if (doneCount === totalHabitsCount) {
+        colorClass = 'cal-all';
+      } else if (doneCount > 0) {
+        colorClass = 'cal-some';
+      } else {
+        colorClass = 'cal-none';
+      }
+    }
+
+    const isSelected = dateStr === state.selectedHistoryDate;
+
+    const cell = document.createElement('div');
+    cell.className = `cal-day-cell ${colorClass} ${isSelected ? 'selected' : ''}`;
+    cell.innerHTML = `<span class="cal-day-num">${day}</span>`;
+
+    cell.addEventListener('click', () => {
+      state.selectedHistoryDate = dateStr;
+      renderCalendarView();
+    });
+
+    daysGrid.appendChild(cell);
+  }
+
+  // Render Inspector & Past Day Editor below Calendar
   const selectedDate = state.selectedHistoryDate || getTodayStr();
-  datePicker.value = selectedDate;
-
-  // Calculate unique recorded dates across habits and weight logs
-  const allRecordedDates = new Set();
-  state.weightLogs.forEach(w => allRecordedDates.add(w.date));
-  state.habits.forEach(h => h.completions.forEach(d => allRecordedDates.add(d)));
-  
-  totalDaysPill.textContent = `${allRecordedDates.size} Days Logged`;
   selectedDateLabel.textContent = formatDateDisplay(selectedDate);
 
   // Weight for selected date
   const weightLog = state.weightLogs.find(w => w.date === selectedDate);
   if (weightLog) {
-    weightValBox.textContent = `${weightLog.weight} lbs`;
+    weightValBox.textContent = `${weightLog.weight} kg`;
     weightValBox.style.color = 'var(--accent-emerald)';
   } else {
-    weightValBox.textContent = 'No weight logged on this date';
+    weightValBox.textContent = 'No weight logged for this date';
     weightValBox.style.color = 'var(--text-muted)';
   }
 
-  // Habits completed on selected date
+  // Habits breakdown with interactive toggle for editing past day
   habitsListContainer.innerHTML = '';
   if (state.habits.length === 0) {
     habitsListContainer.innerHTML = `<div class="empty-state">No habits created yet.</div>`;
@@ -749,7 +839,7 @@ function renderHistoryView() {
     const item = document.createElement('div');
     item.className = `history-habit-item ${isDone ? 'done' : 'not-done'}`;
     item.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 8px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
         <span>${habit.icon || '🎯'}</span>
         <span>${habit.name}</span>
       </div>
@@ -757,47 +847,45 @@ function renderHistoryView() {
         ${isDone ? '✓ Completed' : '○ Pending'}
       </span>
     `;
+
+    // Click to toggle/edit past completion for selected date
+    item.addEventListener('click', () => {
+      toggleHabitCompletion(habit.id, selectedDate);
+    });
+
     habitsListContainer.appendChild(item);
   });
 
   daySummaryBadge.textContent = `${completedOnDateCount}/${state.habits.length} Done`;
 }
 
-function setupHistoryControls() {
-  const datePicker = document.getElementById('history-date-picker');
-  const prevBtn = document.getElementById('history-prev-day-btn');
-  const todayBtn = document.getElementById('history-today-btn');
-  const nextBtn = document.getElementById('history-next-day-btn');
-
-  datePicker.addEventListener('change', (e) => {
-    if (e.target.value) {
-      state.selectedHistoryDate = e.target.value;
-      renderHistoryView();
+function setupCalendarControls() {
+  document.getElementById('cal-prev-month-btn').addEventListener('click', () => {
+    state.calendarMonth--;
+    if (state.calendarMonth < 0) {
+      state.calendarMonth = 11;
+      state.calendarYear--;
     }
+    renderCalendarView();
   });
 
-  prevBtn.addEventListener('click', () => {
-    const d = new Date(state.selectedHistoryDate + 'T00:00:00');
-    d.setDate(d.getDate() - 1);
-    state.selectedHistoryDate = d.toISOString().split('T')[0];
-    renderHistoryView();
+  document.getElementById('cal-next-month-btn').addEventListener('click', () => {
+    state.calendarMonth++;
+    if (state.calendarMonth > 11) {
+      state.calendarMonth = 0;
+      state.calendarYear++;
+    }
+    renderCalendarView();
   });
 
-  todayBtn.addEventListener('click', () => {
-    state.selectedHistoryDate = getTodayStr();
-    renderHistoryView();
-  });
-
-  nextBtn.addEventListener('click', () => {
-    const d = new Date(state.selectedHistoryDate + 'T00:00:00');
-    d.setDate(d.getDate() + 1);
-    state.selectedHistoryDate = d.toISOString().split('T')[0];
-    renderHistoryView();
+  document.getElementById('history-edit-weight-btn').addEventListener('click', () => {
+    document.getElementById('weight-date-input').value = state.selectedHistoryDate;
+    document.getElementById('log-weight-modal').classList.add('active');
   });
 }
 
 // ---------------------------------------------------------------------------
-// 7. STOIC REFLECTIONS CONTROLLER
+// 8. STOIC REFLECTIONS CONTROLLER
 // ---------------------------------------------------------------------------
 
 let currentQuoteIndex = 0;
@@ -846,22 +934,19 @@ function initStoicSection() {
 }
 
 // ---------------------------------------------------------------------------
-// 8. AUTOMATED DAILY HEALTH CHECK (Uptime, Persistence & Error Logging)
+// 9. AUTOMATED DAILY HEALTH CHECK
 // ---------------------------------------------------------------------------
 
 async function runDailyHealthCheck() {
   const todayStr = getTodayStr();
   const lastCheck = localStorage.getItem(STORAGE_KEYS.LAST_HEALTH_CHECK);
 
-  // Run once per day on first session load
   if (lastCheck === todayStr) return;
 
-  console.log('--- STARTING AUTOMATED DAILY HEALTH CHECK ---');
   let uptimeOk = false;
   let persistenceOk = false;
   let errors = [];
 
-  // 1. Uptime Check (Production URL reachability)
   try {
     const res = await fetch(PUBLIC_LIVE_URL, { method: 'HEAD' });
     uptimeOk = res.ok || res.status === 200 || res.status === 304;
@@ -870,7 +955,6 @@ async function runDailyHealthCheck() {
     errors.push('Uptime Check failed: ' + e.message);
   }
 
-  // 2. Persistence Check (Cloud Database endpoint read)
   try {
     const dbRes = await fetch(CLOUD_SYNC_ENDPOINT);
     persistenceOk = dbRes.ok;
@@ -879,7 +963,6 @@ async function runDailyHealthCheck() {
     errors.push('Persistence Check failed: ' + e.message);
   }
 
-  // Log Summary
   console.log(`[Daily Health Check Summary ${todayStr}]`);
   console.log(`- Uptime Check: ${uptimeOk ? '✓ PASSED (200 OK)' : ' FAILED'}`);
   console.log(`- Persistence Check: ${persistenceOk ? '✓ PASSED (DB Active)' : ' FAILED'}`);
@@ -889,7 +972,7 @@ async function runDailyHealthCheck() {
 }
 
 // ---------------------------------------------------------------------------
-// 9. MODAL & NAVIGATION CONTROLLERS
+// 10. MODAL & NAVIGATION CONTROLLERS
 // ---------------------------------------------------------------------------
 
 function setupNavigation() {
@@ -902,7 +985,7 @@ function setupNavigation() {
   const navMap = {
     habits: { title: 'Habits', icon: '🌱', showBtn: true },
     weight: { title: 'Weight Tracker', icon: '⚖️', showBtn: false },
-    history: { title: 'History Log', icon: '📅', showBtn: false },
+    history: { title: 'Calendar History', icon: '📅', showBtn: false },
     stoic: { title: 'Stoic Mind', icon: '🏛️', showBtn: false }
   };
 
@@ -983,7 +1066,7 @@ function setupModals() {
       });
       state.saveHabits();
       renderHabitsView();
-      renderHistoryView();
+      renderCalendarView();
       nameInput.value = '';
       addHabitModal.classList.remove('active');
     }
@@ -1007,7 +1090,7 @@ function setupModals() {
       }
       state.saveWeightLogs();
       renderWeightView();
-      renderHistoryView();
+      renderCalendarView();
       document.getElementById('weight-input').value = '';
       logWeightModal.classList.remove('active');
     }
@@ -1026,18 +1109,18 @@ function setupModals() {
 }
 
 // ---------------------------------------------------------------------------
-// 10. INITIALIZATION & SERVICE WORKER
+// 11. INITIALIZATION & SERVICE WORKER
 // ---------------------------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
   setupPasscodeLock();
   setupNavigation();
-  setupHistoryControls();
+  setupCalendarControls();
   setupModals();
   
   renderHabitsView();
   renderWeightView();
-  renderHistoryView();
+  renderCalendarView();
   initStoicSection();
 
   state.pullFromCloud();

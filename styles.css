@@ -50,7 +50,9 @@ body {
   padding-top: env(safe-area-inset-top);
 }
 
-/* Passcode Overlay */
+/* -------------------------------------------------------------
+   PASSCODE LOCK OVERLAY (Auto-Prompt on Launch)
+------------------------------------------------------------- */
 .passcode-overlay {
   position: fixed;
   top: 0;
@@ -185,6 +187,55 @@ body {
   padding: 6px 14px;
   border-radius: var(--radius-full);
   border: 1px solid var(--border-color);
+}
+
+/* -------------------------------------------------------------
+   STREAK MILESTONE CELEBRATION TOAST
+------------------------------------------------------------- */
+.milestone-toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100px);
+  z-index: 1100;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(245, 158, 11, 0.95));
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-lg);
+  padding: 14px 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 25px rgba(16, 185, 129, 0.4);
+  backdrop-filter: blur(12px);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  max-width: 90%;
+  width: 360px;
+}
+
+.milestone-toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+.milestone-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.milestone-icon {
+  font-size: 2rem;
+}
+
+.milestone-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.milestone-desc {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
 }
 
 /* Header */
@@ -671,9 +722,59 @@ body {
 }
 
 /* -------------------------------------------------------------
-   HISTORY VIEW SECTION
+   INTERACTIVE MONTHLY CALENDAR GRID SECTION
 ------------------------------------------------------------- */
-.history-controls-card {
+.calendar-header-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 14px 18px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-card);
+}
+
+.cal-month-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.cal-nav-btn {
+  padding: 6px 14px;
+  font-size: 1.1rem;
+  border-radius: var(--radius-full);
+}
+
+.calendar-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 14px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+}
+
+.legend-dot.green { background: var(--accent-emerald); }
+.legend-dot.yellow { background: var(--accent-amber); }
+.legend-dot.red { background: var(--accent-rose); }
+
+.calendar-grid-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
@@ -682,17 +783,87 @@ body {
   box-shadow: var(--shadow-card);
 }
 
-.history-nav-btns {
+.calendar-day-names {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 10px;
 }
 
-.history-nav-btns .btn-secondary {
-  padding: 10px;
-  font-size: 0.82rem;
+.calendar-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
 }
 
+.cal-day-cell {
+  aspect-ratio: 1;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.02);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.cal-day-cell:active {
+  transform: scale(0.92);
+}
+
+.cal-day-num {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Color Coding Badges */
+.cal-day-cell.cal-all {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: rgba(16, 185, 129, 0.5);
+}
+
+.cal-day-cell.cal-all .cal-day-num {
+  color: var(--accent-emerald);
+}
+
+.cal-day-cell.cal-some {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
+.cal-day-cell.cal-some .cal-day-num {
+  color: var(--accent-amber);
+}
+
+.cal-day-cell.cal-none {
+  background: rgba(244, 63, 94, 0.12);
+  border-color: rgba(244, 63, 94, 0.3);
+}
+
+.cal-day-cell.cal-none .cal-day-num {
+  color: var(--accent-rose);
+}
+
+.cal-day-cell.selected {
+  outline: 2px solid var(--accent-primary);
+  box-shadow: 0 0 12px var(--accent-primary);
+  z-index: 2;
+}
+
+.cal-day-cell.other-month {
+  opacity: 0.25;
+}
+
+/* Selected Date Detail Card */
 .history-detail-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -766,30 +937,37 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 10px 14px;
   background: rgba(255, 255, 255, 0.03);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.history-habit-item:active {
+  transform: scale(0.98);
 }
 
 .history-habit-item.done {
-  border-left: 3px solid var(--accent-emerald);
+  border-left: 4px solid var(--accent-emerald);
+  background: rgba(16, 185, 129, 0.08);
 }
 
 .history-habit-item.not-done {
-  border-left: 3px solid var(--text-muted);
-  opacity: 0.6;
+  border-left: 4px solid var(--text-muted);
+  opacity: 0.7;
 }
 
 .history-badge-done {
   color: var(--accent-emerald);
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 700;
 }
 
 .history-badge-not-done {
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: 0.85rem;
 }
 
 /* Stoic Section */
