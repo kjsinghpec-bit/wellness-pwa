@@ -1831,6 +1831,11 @@ function renderWeightView() {
   });
 }
 
+function formatWeightChartLabel(weight) {
+  const numericWeight = Number(weight);
+  return Number.isFinite(numericWeight) ? String(numericWeight) : '';
+}
+
 function renderWeightChart(logs, movingAvgs = []) {
   const container = document.getElementById('chart-container');
   if (!logs || logs.length < 2) {
@@ -1869,7 +1874,7 @@ function renderWeightChart(logs, movingAvgs = []) {
 
   const circlesHtml = points.map(p => `
     <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4.5" fill="#38bdf8" stroke="#0b0f19" stroke-width="2"/>
-    <text x="${p.x.toFixed(1)}" y="${(p.y - 10).toFixed(1)}" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="600">${p.weight}k</text>
+    <text x="${p.x.toFixed(1)}" y="${(p.y - 10).toFixed(1)}" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="600">${formatWeightChartLabel(p.weight)}</text>
   `).join('');
 
   const firstDate = formatDateDisplay(logs[0].date).split(',')[1].trim();
@@ -1914,6 +1919,21 @@ function deleteWeightLog(logId) {
 // 10. REAL INTERACTIVE MONTHLY CALENDAR GRID
 // ---------------------------------------------------------------------------
 
+function getCalendarDayStatus(dateStr, todayStr, habits, hasTrackedActivity = false) {
+  if (dateStr > todayStr) return '';
+
+  const habitList = Array.isArray(habits) ? habits : [];
+  if (habitList.length === 0) return hasTrackedActivity ? 'cal-some' : '';
+
+  const doneCount = habitList.reduce((count, habit) => {
+    return count + (getHabitCompletionLevel(habit, dateStr) ? 1 : 0);
+  }, 0);
+
+  if (doneCount === habitList.length) return 'cal-all';
+  if (doneCount > 0 || hasTrackedActivity) return 'cal-some';
+  return 'cal-none';
+}
+
 function renderCalendarView() {
   const monthTitle = document.getElementById('cal-month-title');
   const monthSummary = document.getElementById('cal-month-summary');
@@ -1945,7 +1965,6 @@ function renderCalendarView() {
     daysGrid.appendChild(emptyCell);
   }
 
-  const totalHabitsCount = state.habits.length;
   const todayStr = getTodayStr();
 
   let greenDaysCount = 0;
@@ -1955,23 +1974,12 @@ function renderCalendarView() {
     const dayStr = String(day).padStart(2, '0');
     const dateStr = `${year}-${monthStr}-${dayStr}`;
 
-    let doneCount = 0;
-    state.habits.forEach(h => { if (h.completions.includes(dateStr)) doneCount++; });
-
-    let colorClass = 'cal-none';
-    if (totalHabitsCount > 0) {
-      if (doneCount === totalHabitsCount) {
-        colorClass = 'cal-all';
-        greenDaysCount++;
-      } else if (doneCount > 0) {
-        colorClass = 'cal-some';
-      } else {
-        colorClass = 'cal-none';
-      }
-    }
-
     const hasFood = state.foodLogs.some(f => f.date === dateStr);
     const hasReview = !!state.eveningReviews[dateStr];
+    const hasWeight = state.weightLogs.some(w => w.date === dateStr);
+    const hasTrackedActivity = hasFood || hasReview || hasWeight;
+    const colorClass = getCalendarDayStatus(dateStr, todayStr, state.habits, hasTrackedActivity);
+    if (colorClass === 'cal-all') greenDaysCount++;
 
     const isSelected = dateStr === state.selectedHistoryDate;
     const isToday = dateStr === todayStr;
