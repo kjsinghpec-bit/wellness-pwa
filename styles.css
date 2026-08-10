@@ -1,31 +1,31 @@
 /* Modern Mobile-First Styling for Wellness PWA v2 Personal Instrument */
 :root {
-  --bg-dark: #0b0f19;
-  --bg-card: #151c2c;
-  --bg-card-hover: #1c263c;
-  --bg-glass: rgba(21, 28, 44, 0.9);
-  --border-color: rgba(255, 255, 255, 0.06);
-  --border-highlight: rgba(56, 189, 248, 0.2);
+  --bg-dark: #f4f3ee;
+  --bg-card: #ffffff;
+  --bg-card-hover: #faf2ee;
+  --bg-glass: rgba(255, 255, 255, 0.9);
+  --border-color: #dedbd2;
+  --border-highlight: rgba(218, 119, 86, 0.28);
   
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: #1a1a1a;
+  --text-secondary: #77736b;
+  --text-muted: #b1ada1;
   
-  --accent-primary: #38bdf8;
-  --accent-primary-dark: #0284c7;
-  --accent-emerald: #10b981;
-  --accent-emerald-glow: rgba(16, 185, 129, 0.15);
-  --accent-amber: #f59e0b;
-  --accent-purple: #a855f7;
-  --accent-rose: #f43f5e;
+  --accent-primary: #da7756;
+  --accent-primary-dark: #b85b3e;
+  --accent-emerald: #78907a;
+  --accent-emerald-glow: rgba(120, 144, 122, 0.15);
+  --accent-amber: #b98a4c;
+  --accent-purple: #8a6f88;
+  --accent-rose: #df5d74;
   
   --radius-lg: 18px;
   --radius-md: 12px;
   --radius-sm: 8px;
   --radius-full: 9999px;
   
-  --shadow-card: 0 8px 20px -4px rgba(0, 0, 0, 0.35);
-  --shadow-glow: 0 0 12px rgba(56, 189, 248, 0.1);
+  --shadow-card: 0 10px 30px -18px rgba(69, 51, 42, 0.32);
+  --shadow-glow: 0 0 18px rgba(218, 119, 86, 0.14);
   
   --font-main: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
 }
@@ -39,7 +39,10 @@
 }
 
 body {
-  background-color: var(--bg-dark);
+  background:
+    radial-gradient(circle at 8% 2%, rgba(218, 119, 86, 0.12), transparent 26rem),
+    radial-gradient(circle at 92% 18%, rgba(226, 183, 136, 0.14), transparent 28rem),
+    var(--bg-dark);
   color: var(--text-primary);
   font-family: var(--font-main);
   line-height: 1.5;
@@ -57,7 +60,10 @@ body {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
   z-index: 1000;
-  background: var(--bg-dark);
+  background:
+    radial-gradient(circle at 20% 12%, rgba(218, 119, 86, 0.18), transparent 22rem),
+    radial-gradient(circle at 85% 76%, rgba(226, 183, 136, 0.2), transparent 24rem),
+    var(--bg-dark);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -88,7 +94,7 @@ body {
 .passcode-brand-icon {
   width: 56px;
   height: 56px;
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-purple));
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark));
   border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
@@ -162,7 +168,7 @@ body {
 }
 
 .keypad-btn:active {
-  background: rgba(56, 189, 248, 0.2);
+  background: rgba(218, 119, 86, 0.18);
   border-color: var(--accent-primary);
   transform: scale(0.92);
 }
@@ -423,7 +429,7 @@ body {
 .banner-subtitle { font-size: 0.78rem; color: var(--text-muted); }
 
 .stat-pill {
-  background: rgba(56, 189, 248, 0.1);
+  background: rgba(218, 119, 86, 0.1);
   color: var(--accent-primary);
   border: 1px solid var(--border-highlight);
   padding: 4px 10px;
@@ -436,8 +442,8 @@ body {
    VIEW 0: UNIFIED TODAY SCREEN (REFINED P1-1 POLISH + P1-2 JUST START)
 ------------------------------------------------------------- */
 .today-greeting-card {
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(168, 85, 247, 0.05));
-  border: 1px solid rgba(56, 189, 248, 0.2);
+  background: linear-gradient(135deg, rgba(218, 119, 86, 0.1), rgba(226, 183, 136, 0.08));
+  border: 1px solid rgba(218, 119, 86, 0.2);
   border-radius: var(--radius-lg);
   padding: 18px 20px;
   margin-bottom: 14px;
@@ -568,8 +574,8 @@ body {
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--accent-primary);
-  background: rgba(56, 189, 248, 0.12);
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  background: rgba(218, 119, 86, 0.12);
+  border: 1px solid rgba(218, 119, 86, 0.25);
   padding: 3px 10px;
   border-radius: var(--radius-full);
 }
@@ -616,8 +622,8 @@ body {
 .today-habit-name { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); }
 
 .today-start-btn {
-  background: linear-gradient(135deg, var(--accent-amber), #d97706) !important;
-  color: #000000 !important;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark)) !important;
+  color: #ffffff !important;
   border: none !important;
   padding: 8px 16px !important;
   border-radius: var(--radius-full) !important;
@@ -627,7 +633,7 @@ body {
   min-height: 44px !important;
   display: inline-flex !important;
   align-items: center !important;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3) !important;
+  box-shadow: 0 4px 12px rgba(218, 119, 86, 0.28) !important;
   transition: transform 0.15s ease !important;
 }
 
@@ -656,7 +662,7 @@ body {
   background: var(--accent-emerald);
   border-color: var(--accent-emerald);
   color: #ffffff;
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 0 10px rgba(120, 144, 122, 0.24);
 }
 
 /* Compact "Today at a glance" Bar */
@@ -776,10 +782,16 @@ body {
   border-radius: var(--radius-full);
 }
 
-.streak-badge { background: rgba(245, 158, 11, 0.12); color: var(--accent-amber); }
-.consistency-badge { background: rgba(56, 189, 248, 0.12); color: var(--accent-primary); }
-.grace-badge { background: rgba(168, 85, 247, 0.12); color: var(--accent-purple); }
-.category-tag { background: rgba(255, 255, 255, 0.05); color: var(--text-muted); }
+.streak-badge { background: rgba(218, 119, 86, 0.12); color: var(--accent-primary-dark); font-weight: 700; }
+.consistency-badge,
+.grace-badge,
+.category-tag {
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  font-weight: 500;
+  padding: 0 2px;
+}
 
 .habit-toggle-btn {
   width: 44px;
@@ -806,8 +818,8 @@ body {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 4px;
-  background: rgba(0, 0, 0, 0.15);
-  padding: 8px;
+  background: transparent;
+  padding: 6px 2px;
   border-radius: var(--radius-md);
   margin-bottom: 6px;
 }
@@ -818,7 +830,8 @@ body {
   width: 20px;
   height: 20px;
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.04);
+  background: transparent;
+  border: 1px dotted #c9c4b9;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -826,8 +839,8 @@ body {
   color: transparent;
 }
 
-.day-cell.done .day-dot { background: var(--accent-emerald); color: #ffffff; }
-.day-cell.today .day-label { color: var(--accent-primary); font-weight: 700; }
+.day-cell.done .day-dot { background: var(--accent-emerald); border: 1px solid var(--accent-emerald); color: #ffffff; }
+.day-cell.today .day-label { color: var(--accent-emerald); font-weight: 700; }
 
 .habit-card-footer { display: flex; justify-content: flex-end; }
 .delete-btn { background: transparent; border: none; color: var(--text-muted); font-size: 0.72rem; cursor: pointer; }
@@ -904,7 +917,7 @@ body {
 
 .food-badge { font-size: 0.72rem; font-weight: 700; padding: 2px 6px; border-radius: var(--radius-full); }
 .food-badge.Breakfast { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); }
-.food-badge.Lunch { background: rgba(56, 189, 248, 0.15); color: var(--accent-primary); }
+.food-badge.Lunch { background: rgba(218, 119, 86, 0.15); color: var(--accent-primary); }
 .food-badge.Dinner { background: rgba(168, 85, 247, 0.15); color: var(--accent-purple); }
 .food-badge.Snack\/Tea { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); }
 
@@ -936,7 +949,7 @@ body {
 .progress-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 12px; }
 .progress-header { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 4px; font-weight: 600; }
 .progress-track { background: rgba(0, 0, 0, 0.3); height: 6px; border-radius: var(--radius-full); overflow: hidden; }
-.progress-fill { background: linear-gradient(90deg, var(--accent-primary), var(--accent-emerald)); height: 100%; width: 0%; transition: width 0.4s ease; }
+.progress-fill { background: linear-gradient(90deg, var(--accent-primary), var(--accent-primary-dark)); height: 100%; width: 0%; transition: width 0.4s ease; }
 
 .chart-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 12px; margin-bottom: 14px; }
 .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
@@ -997,7 +1010,7 @@ body {
 
 .history-detail-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 14px; }
 .history-card-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 10px; }
-.history-status-badge { font-size: 0.75rem; font-weight: 700; color: var(--accent-primary); background: rgba(56, 189, 248, 0.12); padding: 3px 8px; border-radius: var(--radius-full); }
+.history-status-badge { font-size: 0.75rem; font-weight: 700; color: var(--accent-primary); background: rgba(218, 119, 86, 0.12); padding: 3px 8px; border-radius: var(--radius-full); }
 .history-sub-title { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
 .history-habit-item { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.02); margin-bottom: 4px; font-size: 0.82rem; cursor: pointer; }
 .history-badge-done { font-size: 0.72rem; color: var(--accent-emerald); font-weight: 700; }
@@ -1015,7 +1028,7 @@ body {
 
 .quote-hero-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 16px; }
 .quote-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.quote-badge { display: flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 700; color: var(--accent-primary); background: rgba(56, 189, 248, 0.1); padding: 3px 8px; border-radius: var(--radius-full); }
+.quote-badge { display: flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 700; color: var(--accent-primary); background: rgba(218, 119, 86, 0.1); padding: 3px 8px; border-radius: var(--radius-full); }
 .fav-quote-btn { background: transparent; border: none; font-size: 1.1rem; cursor: pointer; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .quote-body { font-size: 1.05rem; font-style: italic; font-weight: 500; color: var(--text-primary); line-height: 1.45; margin-bottom: 10px; }
 .quote-author { font-size: 0.8rem; font-weight: 700; color: var(--accent-primary); margin-bottom: 12px; }
@@ -1115,7 +1128,180 @@ body {
 
 .emoji-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; max-height: 130px; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px; }
 .emoji-option { background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 6px; font-size: 1.2rem; text-align: center; cursor: pointer; }
-.emoji-option.selected { border-color: var(--accent-primary); background: rgba(56, 189, 248, 0.15); }
+.emoji-option.selected { border-color: var(--accent-primary); background: rgba(218, 119, 86, 0.15); }
 
 .empty-state { text-align: center; padding: 30px 16px; color: var(--text-muted); }
 .empty-state-icon { font-size: 2.2rem; margin-bottom: 8px; opacity: 0.5; }
+
+/* -------------------------------------------------------------
+   LIVELY DAYLIGHT THEME
+   Bright, calm surfaces with energising nature-inspired accents.
+------------------------------------------------------------- */
+.app-header {
+  background: linear-gradient(110deg, rgba(255, 255, 255, 0.96), rgba(248, 239, 234, 0.94));
+  box-shadow: 0 4px 24px -18px rgba(69, 51, 42, 0.42);
+}
+
+.passcode-brand-icon,
+.brand-icon {
+  filter: drop-shadow(0 6px 10px rgba(218, 119, 86, 0.2));
+}
+
+.keypad-btn,
+.header-icon-btn,
+.modal-close-btn,
+.emoji-option,
+.rotator-step-btn,
+.btn-secondary,
+.shuffle-quote-btn {
+  background: #f8f6f1;
+  border-color: #dedbd2;
+}
+
+.keypad-btn {
+  box-shadow: 0 8px 20px -14px rgba(69, 51, 42, 0.48);
+}
+
+.keypad-btn:active {
+  background: #f5e4de;
+}
+
+.active-timer-banner {
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 14px 34px -18px rgba(79, 63, 27, 0.45);
+}
+
+.timer-readout-box,
+.weight-rotator-container,
+.health-log-box,
+.stoic-nav-bar {
+  background: #f2f0ea;
+}
+
+.today-greeting-card {
+  background:
+    radial-gradient(circle at 92% 18%, rgba(255, 255, 255, 0.7), transparent 8rem),
+    linear-gradient(135deg, #f5e3dc 0%, #f8f0df 100%);
+  border-color: #e7d1c8;
+  box-shadow: 0 14px 32px -20px rgba(119, 68, 50, 0.4);
+}
+
+.today-date-subtitle {
+  color: var(--accent-primary-dark);
+}
+
+.section-banner,
+.morning-intention-card,
+.today-habit-item,
+.habit-card,
+.food-summary-card,
+.food-log-card,
+.stat-card,
+.progress-card,
+.chart-card,
+.calendar-header-card,
+.calendar-grid-card,
+.history-detail-card,
+.quote-hero-card,
+.review-form-card,
+.saved-quote-card,
+.modal-card {
+  box-shadow: var(--shadow-card);
+}
+
+.today-habit-item.completed {
+  background: #f2f1ed;
+  border-color: #e4e1da;
+  opacity: 0.72;
+}
+
+.today-at-a-glance-bar,
+.calendar-legend,
+.cal-day-cell,
+.history-habit-item,
+.explanation-box,
+.insight-card,
+.settings-card,
+.weight-metrics-bar {
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.cat-chip,
+.habit-icon,
+.food-tag-pill,
+.day-cell,
+.form-input {
+  background: #f8f6f1;
+}
+
+.cat-chip.active,
+.btn-primary,
+.header-action-btn {
+  color: #ffffff;
+}
+
+.form-input:focus {
+  background: #ffffff;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(218, 119, 86, 0.13);
+}
+
+.bottom-nav {
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 -8px 30px -22px rgba(69, 51, 42, 0.5);
+}
+
+.nav-tab.active {
+  background: #e9eee8;
+  color: #5f765f;
+}
+
+.stat-pill,
+.today-habits-count-badge,
+.cat-chip.active,
+.stoic-tab-btn.active,
+.quote-badge,
+.quote-author,
+.today-date-subtitle,
+.cal-day-cell.today .cal-day-num {
+  color: #5f765f;
+}
+
+.stat-pill,
+.today-habits-count-badge,
+.cat-chip.active,
+.quote-badge {
+  background: #e9eee8;
+  border-color: #d5dfd4;
+}
+
+.cat-chip.active {
+  color: #465a47;
+}
+
+.timer-countdown,
+.rotator-val,
+.metric-badge strong {
+  color: var(--text-primary);
+}
+
+.food-badge.Lunch,
+.history-status-badge {
+  background: rgba(185, 138, 76, 0.12);
+  color: #8a632e;
+}
+
+.promise-card,
+.yesterday-promise-card.compact {
+  background: #fff7e4;
+  border-color: #f2d89f;
+}
+
+.evening-transition-card {
+  background: #f1ecff;
+  border-color: #d9ccfa;
+}
+
+.modal-overlay {
+  background: rgba(26, 26, 26, 0.38);
+}
