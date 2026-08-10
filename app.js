@@ -1846,8 +1846,8 @@ function renderWeightChart(logs, movingAvgs = []) {
     <text x="${p.x.toFixed(1)}" y="${(p.y - 10).toFixed(1)}" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="600">${p.weight}k</text>
   `).join('');
 
-  const firstDate = formatDateDisplay(logs[0].date).split(',')[0];
-  const lastDate = formatDateDisplay(logs[logs.length - 1].date).split(',')[0];
+  const firstDate = formatDateDisplay(logs[0].date).split(',')[1].trim();
+  const lastDate = formatDateDisplay(logs[logs.length - 1].date).split(',')[1].trim();
 
   container.innerHTML = `
     <svg viewBox="0 0 ${width} ${height}">
@@ -2912,6 +2912,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupWeightRotator();
   setupCalendarControls();
   setupReminderBanner();
+  checkDaytimeReminderAlert();
   setupModals();
   setupDataExport();
   
