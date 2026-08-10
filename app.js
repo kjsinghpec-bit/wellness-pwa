@@ -1453,6 +1453,8 @@ function renderHabitsView() {
 }
 
 function toggleHabitCompletion(habitId, dateStr = getTodayStr(), level = null) {
+  if (isFutureDate(dateStr)) return false;
+
   triggerHapticFeedback();
   const habit = state.habits.find(h => h.id === habitId);
   if (!habit) return;
@@ -1496,6 +1498,7 @@ function toggleHabitCompletion(habitId, dateStr = getTodayStr(), level = null) {
   renderHabitsView();
   renderCalendarView();
   checkDaytimeReminderAlert();
+  return true;
 }
 
 function deleteHabit(habitId) {
@@ -1915,12 +1918,33 @@ function deleteWeightLog(logId) {
   }
 }
 
+function saveWeightLogForDate(weightVal, dateVal) {
+  if (!weightVal || !dateVal || isFutureDate(dateVal)) return false;
+
+  const existingIdx = state.weightLogs.findIndex(log => log.date === dateVal);
+  if (existingIdx > -1) {
+    state.weightLogs[existingIdx].weight = weightVal;
+  } else {
+    state.weightLogs.push({
+      id: 'w_' + Date.now(),
+      weight: weightVal,
+      date: dateVal
+    });
+  }
+  state.saveWeightLogs();
+  return true;
+}
+
 // ---------------------------------------------------------------------------
 // 10. REAL INTERACTIVE MONTHLY CALENDAR GRID
 // ---------------------------------------------------------------------------
 
+function isFutureDate(dateStr, todayStr = getTodayStr()) {
+  return Boolean(dateStr) && dateStr > todayStr;
+}
+
 function getCalendarDayStatus(dateStr, todayStr, habits, hasTrackedActivity = false) {
-  if (dateStr > todayStr) return '';
+  if (isFutureDate(dateStr, todayStr)) return '';
 
   const habitList = Array.isArray(habits) ? habits : [];
   if (habitList.length === 0) return hasTrackedActivity ? 'cal-some' : '';
@@ -1983,9 +2007,11 @@ function renderCalendarView() {
 
     const isSelected = dateStr === state.selectedHistoryDate;
     const isToday = dateStr === todayStr;
+    const isFuture = isFutureDate(dateStr, todayStr);
 
     const cell = document.createElement('div');
-    cell.className = `cal-day-cell ${colorClass} ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''}`;
+    cell.className = `cal-day-cell ${colorClass} ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''} ${isFuture ? 'future' : ''}`;
+    if (isFuture) cell.setAttribute('aria-disabled', 'true');
     
     let indicatorsHtml = '';
     if (hasFood || hasReview) {
@@ -1997,10 +2023,12 @@ function renderCalendarView() {
       ${indicatorsHtml}
     `;
 
-    cell.addEventListener('click', () => {
-      state.selectedHistoryDate = dateStr;
-      renderCalendarView();
-    });
+    if (!isFuture) {
+      cell.addEventListener('click', () => {
+        state.selectedHistoryDate = dateStr;
+        renderCalendarView();
+      });
+    }
 
     daysGrid.appendChild(cell);
   }
@@ -2087,6 +2115,9 @@ function renderCalendarView() {
 }
 
 function setupCalendarControls() {
+  const weightDateInput = document.getElementById('weight-date-input');
+  weightDateInput.max = getTodayStr();
+
   document.getElementById('cal-prev-month-btn').addEventListener('click', () => {
     state.calendarMonth--;
     if (state.calendarMonth < 0) {
@@ -2106,7 +2137,10 @@ function setupCalendarControls() {
   });
 
   document.getElementById('history-edit-weight-btn').addEventListener('click', () => {
-    document.getElementById('weight-date-input').value = state.selectedHistoryDate;
+    const selectedDate = state.selectedHistoryDate || getTodayStr();
+    if (isFutureDate(selectedDate)) return;
+    weightDateInput.max = getTodayStr();
+    weightDateInput.value = selectedDate;
     document.getElementById('log-weight-modal').classList.add('active');
   });
 }
@@ -2899,7 +2933,9 @@ function setupModals() {
   if (settingsGraceToggle) settingsGraceToggle.addEventListener('change', updateAndSaveSettings);
 
   document.getElementById('log-weight-btn').addEventListener('click', () => {
-    document.getElementById('weight-date-input').value = getTodayStr();
+    const weightDateInput = document.getElementById('weight-date-input');
+    weightDateInput.max = getTodayStr();
+    weightDateInput.value = getTodayStr();
     logWeightModal.classList.add('active');
   });
 
@@ -2966,18 +3002,7 @@ function setupModals() {
     const weightVal = activeRotatorWeight;
     const dateVal = document.getElementById('weight-date-input').value;
 
-    if (weightVal && dateVal) {
-      const existingIdx = state.weightLogs.findIndex(l => l.date === dateVal);
-      if (existingIdx > -1) {
-        state.weightLogs[existingIdx].weight = weightVal;
-      } else {
-        state.weightLogs.push({
-          id: 'w_' + Date.now(),
-          weight: weightVal,
-          date: dateVal
-        });
-      }
-      state.saveWeightLogs();
+    if (saveWeightLogForDate(weightVal, dateVal)) {
       renderTodayView();
       renderWeightView();
       renderCalendarView();

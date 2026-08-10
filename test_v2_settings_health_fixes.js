@@ -81,6 +81,10 @@ class MockElement {
     if (!this.listeners[event]) this.listeners[event] = [];
     this.listeners[event].push(cb);
   }
+  setAttribute(name, value) {
+    if (!this.attributes) this.attributes = {};
+    this.attributes[name] = String(value);
+  }
   dispatchEvent(event, data) {
     if (this.listeners[event]) {
       this.listeners[event].forEach(cb => cb(data));

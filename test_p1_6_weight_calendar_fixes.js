@@ -47,14 +47,16 @@ check(
 
 console.log('\n--- 2. Calendar status distinguishes future and canonical completion data ---');
 const completionLevelSource = extractFunctionSource(appJsContent, 'getHabitCompletionLevel');
+const futureDateSource = extractFunctionSource(appJsContent, 'isFutureDate');
 const calendarStatusSource = extractFunctionSource(appJsContent, 'getCalendarDayStatus');
 check('Calendar day-status helper exists', !!calendarStatusSource);
+check('Shared future-date guard exists', !!futureDateSource);
 
-if (completionLevelSource && calendarStatusSource) {
+if (completionLevelSource && futureDateSource && calendarStatusSource) {
   const sandbox = {};
   vm.createContext(sandbox);
   vm.runInContext(
-    `${completionLevelSource}\n${calendarStatusSource}\nthis.getCalendarDayStatus = getCalendarDayStatus;`,
+    `${completionLevelSource}\n${futureDateSource}\n${calendarStatusSource}\nthis.getCalendarDayStatus = getCalendarDayStatus;`,
     sandbox
   );
 
