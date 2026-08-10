@@ -2610,6 +2610,34 @@ async function runDailyHealthCheck() {
   const todayStr = getTodayStr();
   const lastCheck = localStorage.getItem(STORAGE_KEYS.LAST_HEALTH_CHECK);
 
+  const dot = document.getElementById('health-status-dot');
+  const textEl = document.getElementById('health-status-text');
+  const logBox = document.getElementById('health-log-box');
+
+  if (lastCheck === todayStr) {
+    if (dot && textEl && logBox) {
+      if (state.healthHistory && state.healthHistory.length > 0) {
+        const latestHistory = state.healthHistory[0] || '';
+        const uptimeOk = latestHistory.includes('Uptime: OK');
+        const persistenceOk = latestHistory.includes('DB: OK');
+
+        if (uptimeOk && persistenceOk) {
+          dot.className = 'status-dot-indicator green';
+          textEl.textContent = `Last check (${todayStr}): Operational`;
+        } else {
+          dot.className = 'status-dot-indicator red';
+          textEl.textContent = `Last check (${todayStr}): Issues detected`;
+        }
+        logBox.innerHTML = state.healthHistory.map(l => `<div>${l}</div>`).join('');
+      } else {
+        dot.className = 'status-dot-indicator';
+        textEl.textContent = 'Health check completed today; saved details unavailable.';
+        logBox.innerHTML = '';
+      }
+    }
+    return;
+  }
+
   let uptimeOk = false;
   let persistenceOk = false;
   let errors = [];
@@ -2634,10 +2662,6 @@ async function runDailyHealthCheck() {
   state.healthHistory.unshift(statusText);
   state.healthHistory = state.healthHistory.slice(0, 7);
   localStorage.setItem(STORAGE_KEYS.HEALTH_HISTORY, JSON.stringify(state.healthHistory));
-
-  const dot = document.getElementById('health-status-dot');
-  const textEl = document.getElementById('health-status-text');
-  const logBox = document.getElementById('health-log-box');
 
   if (dot && textEl && logBox) {
     if (uptimeOk && persistenceOk) {
@@ -2813,8 +2837,58 @@ function setupModals() {
   });
 
   document.getElementById('settings-btn').addEventListener('click', () => {
+    const startTimeInput = document.getElementById('reminder-start-time');
+    const endTimeInput = document.getElementById('reminder-end-time');
+    const graceToggle = document.getElementById('streak-grace-toggle');
+    if (startTimeInput) startTimeInput.value = state.settings.reminderStart || '09:00';
+    if (endTimeInput) endTimeInput.value = state.settings.reminderEnd || '21:00';
+    if (graceToggle) graceToggle.checked = state.settings.streakGraceEnabled !== false;
     settingsModal.classList.add('active');
   });
+
+  function updateAndSaveSettings() {
+    const startTimeInput = document.getElementById('reminder-start-time');
+    const endTimeInput = document.getElementById('reminder-end-time');
+    const graceToggle = document.getElementById('streak-grace-toggle');
+    if (!startTimeInput || !endTimeInput || !graceToggle) return;
+
+    const startVal = startTimeInput.value;
+    const endVal = endTimeInput.value;
+    const graceVal = graceToggle.checked;
+
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if (!timeRegex.test(startVal) || !timeRegex.test(endVal)) {
+      startTimeInput.value = state.settings.reminderStart || '09:00';
+      endTimeInput.value = state.settings.reminderEnd || '21:00';
+      return;
+    }
+
+    const [sH, sM] = startVal.split(':').map(Number);
+    const [eH, eM] = endVal.split(':').map(Number);
+    const startMins = sH * 60 + sM;
+    const endMins = eH * 60 + eM;
+
+    if (startMins >= endMins) {
+      startTimeInput.value = state.settings.reminderStart || '09:00';
+      endTimeInput.value = state.settings.reminderEnd || '21:00';
+      return;
+    }
+
+    state.settings.reminderStart = startVal;
+    state.settings.reminderEnd = endVal;
+    state.settings.streakGraceEnabled = graceVal;
+    state.saveSettings();
+
+    checkDaytimeReminderAlert();
+    renderTodayView();
+  }
+
+  const settingsStartTimeInput = document.getElementById('reminder-start-time');
+  const settingsEndTimeInput = document.getElementById('reminder-end-time');
+  const settingsGraceToggle = document.getElementById('streak-grace-toggle');
+  if (settingsStartTimeInput) settingsStartTimeInput.addEventListener('change', updateAndSaveSettings);
+  if (settingsEndTimeInput) settingsEndTimeInput.addEventListener('change', updateAndSaveSettings);
+  if (settingsGraceToggle) settingsGraceToggle.addEventListener('change', updateAndSaveSettings);
 
   document.getElementById('log-weight-btn').addEventListener('click', () => {
     document.getElementById('weight-date-input').value = getTodayStr();
