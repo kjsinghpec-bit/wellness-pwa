@@ -162,7 +162,17 @@ check(
   appJsContent.includes('const TARGET_PASSCODE_HASH = "434f4d14c1eb231306b51aaa160c021b63670ac6ca67fb8e403f4500983dd1e4";')
 );
 const swContent = fs.readFileSync(path.join(__dirname, 'sw.js'), 'utf8');
-check('Service worker cache strategy file untouched by this change set', swContent.includes("CACHE_NAME = 'wellness-v3';"));
+check('Service worker retains the existing network-first strategy with offline fallback',
+  swContent.includes("fetch(event.request, { cache: 'no-cache' })") &&
+  swContent.includes("caches.match(event.request)") &&
+  swContent.includes("caches.match('./index.html')")
+);
+check('Service worker caches the current Askesis icon assets',
+  swContent.includes("'./askesis-icon.svg'") &&
+  swContent.includes("'./askesis-icon-192.png'") &&
+  swContent.includes("'./askesis-icon-512.png'") &&
+  swContent.includes("'./askesis-apple-touch-icon.png'")
+);
 
 if (failCount === 0) {
   console.log('\n=== ALL P1-5 POLISH-FIX REGRESSION SCENARIOS PASSED PERFECTLY ===');

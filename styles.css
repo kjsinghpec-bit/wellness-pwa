@@ -94,8 +94,9 @@ body {
 .passcode-brand-icon {
   width: 56px;
   height: 56px;
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark));
+  background: var(--bg-primary);
   border-radius: var(--radius-lg);
+  object-fit: cover;
   display: flex;
   align-items: center;
   justify-content: center;

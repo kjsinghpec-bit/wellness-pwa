@@ -1,13 +1,14 @@
-const CACHE_NAME = 'wellness-v3';
+const CACHE_NAME = 'wellness-v4';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './styles.css',
   './app.js',
   './manifest.json',
-  './icon-192.png',
-  './icon-512.png',
-  './apple-touch-icon.png'
+  './askesis-icon.svg',
+  './askesis-icon-192.png',
+  './askesis-icon-512.png',
+  './askesis-apple-touch-icon.png'
 ];
 
 // Install Event - Caching App Shell
