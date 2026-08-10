@@ -707,6 +707,30 @@ function startActivationTimer(habitId, targetLevel = 'minimum') {
   initTimerEngine();
 }
 
+// Reflects which target level (minimum vs ideal) actually just elapsed in the
+// completion prompt's text, without altering the underlying timer/completion
+// state machine or recorded completion level.
+function applyTimerCompletionText(targetLevel) {
+  const isIdeal = targetLevel === 'ideal';
+
+  const confirmTitle = document.getElementById('timer-confirm-title');
+  const yesBtn = document.getElementById('timer-yes-done-btn');
+  const optionsTitle = document.getElementById('timer-options-title');
+  const optionsSubtitle = document.getElementById('timer-options-subtitle');
+  const continueBtn = document.getElementById('timer-continue-btn');
+
+  if (confirmTitle) confirmTitle.textContent = isIdeal ? 'Ideal target reached' : 'Minimum time reached';
+  if (yesBtn) yesBtn.textContent = isIdeal ? 'Yes, ideal done' : 'Yes, minimum done';
+  if (optionsTitle) optionsTitle.textContent = isIdeal ? 'Ideal complete ✓' : 'Minimum complete ✓';
+  if (optionsSubtitle) {
+    optionsSubtitle.textContent = isIdeal
+      ? 'Great work! You hit your ideal target today.'
+      : 'Starting counts! You maintained your streak. Continue or finish?';
+  }
+  // Once the ideal target itself is done, there's no further level to continue toward.
+  if (continueBtn) continueBtn.style.display = isIdeal ? 'none' : 'flex';
+}
+
 function initTimerEngine() {
   if (activeTimerInterval) clearInterval(activeTimerInterval);
 
@@ -733,6 +757,7 @@ function initTimerEngine() {
 
   if (minCompleteBox && confirmStep && optionsStep) {
     if (timerState.state === 'completed_minimum') {
+      applyTimerCompletionText(timerState.targetLevel);
       minCompleteBox.style.display = 'block';
       confirmStep.style.display = 'block';
       optionsStep.style.display = 'none';
@@ -776,11 +801,12 @@ function updateTimerTick() {
     saveTimerState(timerState);
     triggerHapticFeedback();
 
-    // Show prompt: "Minimum time reached. Did you actually do it?"
+    // Show prompt: "Minimum/Ideal time reached. Did you actually do it?"
     const minCompleteBox = document.getElementById('timer-minimum-complete-box');
     const confirmStep = document.getElementById('timer-confirm-step');
     const optionsStep = document.getElementById('timer-options-step');
     if (minCompleteBox && confirmStep && optionsStep) {
+      applyTimerCompletionText(timerState.targetLevel);
       minCompleteBox.style.display = 'block';
       confirmStep.style.display = 'block';
       optionsStep.style.display = 'none';
@@ -1400,7 +1426,7 @@ function renderHabitsView() {
         ${weeklyRowHtml}
       </div>
       <div class="habit-card-footer">
-        <button class="delete-btn" data-delete-id="${habit.id}">Remove</button>
+        <button class="habit-delete-btn" data-delete-id="${habit.id}">Remove</button>
       </div>
     `;
 
@@ -1415,7 +1441,7 @@ function renderHabitsView() {
       toggleHabitCompletion(habit.id, todayStr, isDoneToday ? null : (habit.activationModeEnabled ? 'ideal' : 'ideal'));
     });
 
-    card.querySelector('.delete-btn').addEventListener('click', () => {
+    card.querySelector('.habit-delete-btn').addEventListener('click', () => {
       deleteHabit(habit.id);
     });
 

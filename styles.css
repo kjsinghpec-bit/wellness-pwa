@@ -832,6 +832,22 @@ body {
 .habit-card-footer { display: flex; justify-content: flex-end; }
 .delete-btn { background: transparent; border: none; color: var(--text-muted); font-size: 0.72rem; cursor: pointer; }
 
+/* Same low-emphasis look as .delete-btn, but with a 44x44 minimum tap
+   target - the visible label stays small; only the invisible hit area grows. */
+.habit-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 6px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 /* -------------------------------------------------------------
    DAILY FOOD JOURNAL
 ------------------------------------------------------------- */
